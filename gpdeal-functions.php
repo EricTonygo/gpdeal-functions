@@ -149,6 +149,45 @@ function post_type_transport_offer_init() {
     register_post_type('transport-offer', $args);
 }
 
+function post_type_city_init() {
+    $labels = array(
+        'name' => _x('Cities', 'post type general name', 'gpdealdomain'),
+        'singular_name' => _x('City', 'post type singular name', 'gpdealdomain'),
+        'menu_name' => _x('Cities', 'admin menu', 'gpdealdomain'),
+        'name_admin_bar' => _x('City', 'add new on admin bar', 'gpdealdomain'),
+        'add_new' => _x('Add New', 'transport-offer', 'gpdealdomain'),
+        'add_new_item' => __('Add New City', 'gpdealdomain'),
+        'new_item' => __('New City', 'gpdealdomain'),
+        'edit_item' => __('Edit City', 'gpdealdomain'),
+        'view_item' => __('View City', 'gpdealdomain'),
+        'all_items' => __('All Cities', 'gpdealdomain'),
+        'search_items' => __('Search Cities', 'gpdealdomain'),
+        'parent_item_colon' => __('Parent Cities:', 'gpdealdomain'),
+        'not_found' => __('No city found.', 'gpdealdomain'),
+        'not_found_in_trash' => __('No city found in Trash.', 'gpdealdomain')
+    );
+
+    $args = array(
+        'labels' => $labels,
+        'description' => __('This is a post type for the city.', 'gpdealdomain'),
+        'public' => true,
+        'publicly_queryable' => true,
+        'show_ui' => true,
+        'show_in_menu' => true,
+        'show_in_rest' => true,
+        'delete_with_user' => true,
+        'query_var' => true,
+        'rewrite' => array('slug' => 'city'),
+        'capability_type' => 'post',
+        'has_archive' => true,
+        'hierarchical' => false,
+        'menu_position' => null,
+        'supports' => array('title')
+    );
+
+    register_post_type('city', $args);
+}
+
 function post_type_term_use_init() {
     $labels = array(
         'name' => _x('Terms of use', 'post type general name', 'gpdealdomain'),
@@ -361,6 +400,7 @@ function my_custom_init() {
     post_type_package_init();
     post_type_question_init();
     post_type_term_use_init();
+    post_type_city_init();
     create_transport_offer_taxonomies();
     addUserCustomsField();
     add_my_featured_image_to_home();
@@ -1137,7 +1177,7 @@ function updateSendPackage($post_ID) {
     }
 }
 
-//Fonction for Transporting a package
+//Fonction for Saving a Transport offer
 function saveTransportOffer() {
     if (isset($_POST['transport_offer_package_type']) && isset($_POST['transport_offer_transport_method']) && isset($_POST['transport_offer_price']) && isset($_POST['transport_offer_currency']) && isset($_POST['start_city']) && isset($_POST['start_date']) && isset($_POST['start_deadline']) && isset($_POST['destination_city']) && isset($_POST['destination_date']) && isset($_POST['terms'])) {
         $package_type = array_map('intval', $_POST['transport_offer_package_type']);
@@ -2132,4 +2172,62 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
         }
     }
     return $args;
+}
+
+function load_cities_db($country_name) {
+    require('php-excel-reader/excel_reader2.php');
+
+    require('./SpreadsheetReader.php');
+
+    $Reader = new SpreadsheetReader('cities.xlsx');
+    $Sheets = $Reader->Sheets();
+    $args = array(
+        'post_type' => 'city',
+        "post_status" => 'publish'
+    );
+    foreach ($Sheets as $Index => $Name) {
+        if ($Name == $country_name) {
+            $Reader->ChangeSheet($Index);
+            foreach ($Reader as $Row) {
+                $args['name'] = $Row[0];
+                $args['meta_query'] = array(
+                    'relation' => 'OR',
+                    array(
+                        'key' => 'city',
+                        'value' => $Row[1],
+                        'compare' => '=',
+                    ),
+                    array(
+                        'key' => 'country',
+                        'value' => $Row[2],
+                        'compare' => '=',
+                    )
+                );
+                $cities = new WP_Query($args);
+                if (!$cities->have_posts()) {
+                    saveCity($Row[0], $Row[1], $Row[2]);
+                }
+                wp_reset_postdata();
+            }
+            break;
+        }
+    }
+}
+
+//Function to save city loaded to xlsx files in database as post_type city
+function saveCity($city, $region, $country){
+    $post_args = array(
+            'post_title' => wp_strip_all_tags($city),
+            'post_type' => 'city',
+            'meta_input' => array(
+                'region' => wp_strip_all_tags($region),
+                'country' =>wp_strip_all_tags($country)
+            )
+        );
+        $post_id = wp_insert_post($post_args, true);
+
+        if (!is_wp_error($post_id)) {
+            echo "Echec de l'enregistrement de ".$city." ".$region." ".$country;
+            exit;
+        }
 }
