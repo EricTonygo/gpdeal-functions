@@ -972,29 +972,6 @@ function getGenderHoldName($gender) {
     }
 }
 
-//Function use to retrieve a list of countries online
-function getCountriesList() {
-    $countries = array(['code' => 'Alabama', 'flag' => 'al', 'name' => 'Alabama'], ['code' => 'Alaska', 'flag' => 'ak', 'name' => 'Alaska'], ['code' => 'Arizona', 'flag' => 'az', 'name' => 'Arizona'],
-        ['code' => 'Arkansas', 'flag' => 'ar', 'name' => 'Arkansas'], ['code' => 'California', 'flag' => 'ca', 'name' => 'California']
-    );
-    return $countries;
-}
-
-//Function use to retrieve a list of States or Regions of a specific country by countryCode
-function getStatesListOfCountry($countryCode = null) {
-    $states = array(['code' => 'Region 1', 'flag' => 'al', 'name' => 'Region 1'], ['code' => 'Region 2', 'flag' => 'ak', 'name' => 'Region 2'], ['code' => 'Region 3', 'flag' => 'az', 'name' => 'Region 3'],
-        ['code' => 'Region 4', 'flag' => 'ar', 'name' => 'Region 4'], ['code' => 'Region 5', 'flag' => 'ca', 'name' => 'Region 5']
-    );
-    return $states;
-}
-
-//Function use to retrieve a list of cities of a specific State
-function getCitiesListOfState($stateCode = null) {
-    $cities = array(['code' => 'Ville 1', 'flag' => 'al', 'name' => 'Ville 1'], ['code' => 'Ville 2', 'flag' => 'ak', 'name' => 'Ville 2'], ['code' => 'Ville 3', 'flag' => 'az', 'name' => 'Ville 3'],
-        ['code' => 'Ville 4', 'flag' => 'ar', 'name' => 'Ville 4'], ['code' => 'Ville 5', 'flag' => 'ca', 'name' => 'Ville 5']
-    );
-    return $cities;
-}
 
 //Function use to retrieve a list of cities of a specific State
 function getCurrenciesList() {
@@ -1042,6 +1019,7 @@ function sendPackage() {
         if (count($start_localities) == 2) {
             $start_city = $start_localities[0];
             $start_country = $start_localities[1];
+            $start_state = getRegionByCityAndCountry($start_city, $start_country);
         } elseif (count($start_localities) == 3) {
             $start_city = $start_localities[0];
             $start_state = $start_localities[1];
@@ -1056,6 +1034,7 @@ function sendPackage() {
         if (count($destination_localities) == 2) {
             $destination_city = $destination_localities[0];
             $destination_country = $destination_localities[1];
+            $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
         } elseif (count($destination_localities) == 3) {
             $destination_city = $destination_localities[0];
             $destination_state = $destination_localities[1];
@@ -1122,6 +1101,7 @@ function updateSendPackage($post_ID) {
         if (count($start_localities) == 2) {
             $start_city = $start_localities[0];
             $start_country = $start_localities[1];
+            $start_state = getRegionByCityAndCountry($start_city, $start_country);
         } elseif (count($start_localities) == 3) {
             $start_city = $start_localities[0];
             $start_state = $start_localities[1];
@@ -1136,6 +1116,7 @@ function updateSendPackage($post_ID) {
         if (count($destination_localities) == 2) {
             $destination_city = $destination_localities[0];
             $destination_country = $destination_localities[1];
+            $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
         } elseif (count($destination_localities) == 3) {
             $destination_city = $destination_localities[0];
             $destination_state = $destination_localities[1];
@@ -1200,6 +1181,7 @@ function saveTransportOffer() {
         if (count($start_localities) == 2) {
             $start_city = $start_localities[0];
             $start_country = $start_localities[1];
+            $start_state = getRegionByCityAndCountry($start_city, $start_country);
         } elseif (count($start_localities) == 3) {
             $start_city = $start_localities[0];
             $start_state = $start_localities[1];
@@ -1214,6 +1196,7 @@ function saveTransportOffer() {
         if (count($destination_localities) == 2) {
             $destination_city = $destination_localities[0];
             $destination_country = $destination_localities[1];
+            $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
         } elseif (count($destination_localities) == 3) {
             $destination_city = $destination_localities[0];
             $destination_state = $destination_localities[1];
@@ -1276,6 +1259,7 @@ function updateTransportOffer($post_ID) {
         if (count($start_localities) == 2) {
             $start_city = $start_localities[0];
             $start_country = $start_localities[1];
+            $start_state = getRegionByCityAndCountry($start_city, $start_country);
         } elseif (count($start_localities) == 3) {
             $start_city = $start_localities[0];
             $start_state = $start_localities[1];
@@ -1290,6 +1274,7 @@ function updateTransportOffer($post_ID) {
         if (count($destination_localities) == 2) {
             $destination_city = $destination_localities[0];
             $destination_country = $destination_localities[1];
+            $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
         } elseif (count($destination_localities) == 3) {
             $destination_city = $destination_localities[0];
             $destination_state = $destination_localities[1];
@@ -1465,6 +1450,7 @@ function getWPQueryArgsForCarrierSearch() {
             if (count($start_localities) == 2) {
                 $start_city = $start_localities[0];
                 $start_country = $start_localities[1];
+                //$start_state = getRegionByCityAndCountry($start_state, $start_country);
             } elseif (count($start_localities) == 3) {
                 $start_city = $start_localities[0];
                 $start_state = $start_localities[1];
@@ -1502,6 +1488,7 @@ function getWPQueryArgsForCarrierSearch() {
             if (count($destination_localities) == 2) {
                 $destination_city = $destination_localities[0];
                 $destination_country = $destination_localities[1];
+                //$destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
             } elseif (count($destination_localities) == 3) {
                 $destination_city = $destination_localities[0];
                 $destination_state = $destination_localities[1];
@@ -1584,9 +1571,10 @@ function getWPQueryArgsForUnsatifiedSendPackages() {
             if (count($start_localities) == 2) {
                 $start_city = $start_localities[0];
                 $start_country = $start_localities[1];
+                //$start_state = getRegionByCityAndCountry($start_state, $start_country);
             } elseif (count($start_localities) == 3) {
                 $start_city = $start_localities[0];
-                $start_state = $start_localities[1];
+                //$start_state = $start_localities[1];
                 $start_country = $start_localities[2];
             }
             $meta_query[] = array(
@@ -1622,9 +1610,10 @@ function getWPQueryArgsForUnsatifiedSendPackages() {
             if (count($destination_localities) == 2) {
                 $destination_city = $destination_localities[0];
                 $destination_country = $destination_localities[1];
+                //$destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
             } elseif (count($destination_localities) == 3) {
                 $destination_city = $destination_localities[0];
-                $destination_state = $destination_localities[1];
+                //$destination_state = $destination_localities[1];
                 $destination_country = $destination_localities[2];
             }
             $meta_query[] = array(
@@ -1695,6 +1684,7 @@ function getWPQueryArgsCarrierSearchForWhichCanInterest($exclude_ids = array()) 
                 if (count($start_localities) == 2) {
                     $start_city = $start_localities[0];
                     $start_country = $start_localities[1];
+                    $start_state = getRegionByCityAndCountry($start_city, $start_country);
                 } elseif (count($start_localities) == 3) {
                     $start_city = $start_localities[0];
                     $start_state = $start_localities[1];
@@ -1741,6 +1731,7 @@ function getWPQueryArgsCarrierSearchForWhichCanInterest($exclude_ids = array()) 
                 if (count($destination_localities) == 2) {
                     $destination_city = $destination_localities[0];
                     $destination_country = $destination_localities[1];
+                    $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
                 } elseif (count($destination_localities) == 3) {
                     $destination_city = $destination_localities[0];
                     $destination_state = $destination_localities[1];
@@ -1831,6 +1822,7 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($exclude_ids = a
                 if (count($start_localities) == 2) {
                     $start_city = $start_localities[0];
                     $start_country = $start_localities[1];
+                    $start_state = getRegionByCityAndCountry($start_city, $start_country);
                 } elseif (count($start_localities) == 3) {
                     $start_city = $start_localities[0];
                     $start_state = $start_localities[1];
@@ -1868,7 +1860,6 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($exclude_ids = a
                 );
             }
 
-
             if ($destination_city) {
                 $destination_country = "";
                 $destination_state = "";
@@ -1877,6 +1868,7 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($exclude_ids = a
                 if (count($destination_localities) == 2) {
                     $destination_city = $destination_localities[0];
                     $destination_country = $destination_localities[1];
+                    $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
                 } elseif (count($destination_localities) == 3) {
                     $destination_city = $destination_localities[0];
                     $destination_state = $destination_localities[1];
@@ -1938,6 +1930,7 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters() {
             if (count($start_localities) == 2) {
                 $start_city = $start_localities[0];
                 $start_country = $start_localities[1];
+                $start_state = getRegionByCityAndCountry($start_city, $start_country);
             } elseif (count($start_localities) == 3) {
                 $start_city = $start_localities[0];
                 $start_state = $start_localities[1];
@@ -2065,6 +2058,7 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
             if (count($destination_localities) == 2) {
                 $destination_city = $destination_localities[0];
                 $destination_country = $destination_localities[1];
+                $destination_state= getRegionByCityAndCountry($destination_city, $destination_country);
             } elseif (count($destination_localities) == 3) {
                 $destination_city = $destination_localities[0];
                 $destination_state = $destination_localities[1];
@@ -2177,57 +2171,101 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
 function load_cities_db($country_name) {
     require('php-excel-reader/excel_reader2.php');
 
-    require('./SpreadsheetReader.php');
+    require('SpreadsheetReader.php');
 
-    $Reader = new SpreadsheetReader('cities.xlsx');
+    $Reader = new SpreadsheetReader(wp_normalize_path(WPMU_PLUGIN_DIR) . '/gpdeal-functions/cities.xlsx');
     $Sheets = $Reader->Sheets();
     $args = array(
         'post_type' => 'city',
-        "post_status" => 'publish'
+        "post_status" => 'publish',
+        'post_per_page' => 1
     );
     foreach ($Sheets as $Index => $Name) {
         if ($Name == $country_name) {
             $Reader->ChangeSheet($Index);
+            $i = 0;
             foreach ($Reader as $Row) {
-                $args['name'] = $Row[0];
-                $args['meta_query'] = array(
-                    'relation' => 'OR',
-                    array(
-                        'key' => 'city',
-                        'value' => $Row[1],
-                        'compare' => '=',
-                    ),
-                    array(
-                        'key' => 'country',
-                        'value' => $Row[2],
-                        'compare' => '=',
-                    )
-                );
-                $cities = new WP_Query($args);
-                if (!$cities->have_posts()) {
-                    saveCity($Row[0], $Row[1], $Row[2]);
+                if ($i != 0) {
+                    $args['title'] = $Row[0];
+                    $args['meta_query'] = array(
+                        'relation' => 'AND',
+                        array(
+                            'key' => 'region',
+                            'value' => $Row[1],
+                            'compare' => '=',
+                        ),
+                        array(
+                            'key' => 'country',
+                            'value' => $Row[2],
+                            'compare' => '=',
+                        )
+                    );
+                    $cities = new WP_Query($args);
+                    if (!$cities->have_posts()) {
+                        saveCity($Row[0], $Row[1], $Row[2]);
+                    }
+                    wp_reset_postdata();
                 }
-                wp_reset_postdata();
+                $i++;
             }
             break;
         }
     }
+    echo 'Cities Database of ' . $country_name . " loaded successfully !";
 }
 
 //Function to save city loaded to xlsx files in database as post_type city
-function saveCity($city, $region, $country){
+function saveCity($city, $region, $country) {
     $post_args = array(
-            'post_title' => wp_strip_all_tags($city),
-            'post_type' => 'city',
-            'meta_input' => array(
-                'region' => wp_strip_all_tags($region),
-                'country' =>wp_strip_all_tags($country)
-            )
-        );
-        $post_id = wp_insert_post($post_args, true);
+        'post_title' => wp_strip_all_tags($city),
+        'post_type' => 'city',
+        'post_status' => 'publish',
+        'meta_input' => array(
+            'region' => wp_strip_all_tags($region),
+            'country' => wp_strip_all_tags($country)
+        )
+    );
+    $post_id = wp_insert_post($post_args, true);
 
-        if (!is_wp_error($post_id)) {
-            echo "Echec de l'enregistrement de ".$city." ".$region." ".$country;
-            exit;
+    if (is_wp_error($post_id)) {
+        echo "Echec de l'enregistrement de " . $city . " " . $region . " " . $country;
+        exit;
+    }
+}
+
+//Function to url of attachment by it filename
+function get_attachment_url_by_filename($filename) {
+    $args = array(
+        'post_per_page' => 1,
+        'post_type' => 'attachment',
+        'name' => trim($filename),
+    );
+    $get_posts = new Wp_Query($args);
+
+    $file = $get_posts ? array_pop($get_posts) : null;
+    return $file ? wp_get_attachment_url($file->ID) : '';
+}
+
+function getRegionByCityAndCountry($city, $country) {
+    $region = "";
+    $args = array(
+        'post_type' => 'city',
+        "post_status" => 'publish',
+        'post_per_page' => 1,
+        'title' => $city,
+        'meta_query' => array(
+            'key' => 'country',
+            'value' => $country,
+            'compare' => '='
+        )
+    );
+    $cities = new WP_Query($args);
+    if ($cities->have_posts()) {
+        while ($cities->have_posts()){
+            $cities->the_post();
+            $region = get_post_meta(get_the_ID(), 'region', true);
         }
+    }
+    wp_reset_postdata();
+    return $region;
 }

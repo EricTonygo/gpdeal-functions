@@ -6,7 +6,7 @@ require('php-excel-reader/excel_reader2.php');
 require('./SpreadsheetReader.php');
 //require('./gpdeal-functions.php');
 
-$Reader = new SpreadsheetReader('countries.xlsx');
+$Reader = new SpreadsheetReader('cities.xlsx');
 $Sheets = $Reader->Sheets();
 
 foreach ($Sheets as $Index => $Name) {
@@ -17,9 +17,10 @@ foreach ($Sheets as $Index => $Name) {
 
         echo 'Nombre de ligne: '.count($Reader).'\n';
         $i=0;
-        foreach ($Reader as $Row) {
-            if($i==2){
-                print_r($Row);
+        //foreach ($Reader as $Row) {
+        for($i=3; $i< count($Reader); $i++){
+            if($i==3){
+                print_r($Reader[3]);
             }
             $i++;
         }
