@@ -2186,17 +2186,17 @@ function load_cities_db($country_name) {
             $i = 0;
             foreach ($Reader as $Row) {
                 if ($i != 0) {
-                    $args['title'] = $Row[0];
+                    $args['title'] = esc_attr(trim($Row[0]));
                     $args['meta_query'] = array(
                         'relation' => 'AND',
                         array(
                             'key' => 'region',
-                            'value' => $Row[1],
+                            'value' => esc_attr(trim($Row[1])),
                             'compare' => '=',
                         ),
                         array(
                             'key' => 'country',
-                            'value' => $Row[2],
+                            'value' => esc_attr(trim($Row[2])),
                             'compare' => '=',
                         )
                     );
@@ -2217,12 +2217,12 @@ function load_cities_db($country_name) {
 //Function to save city loaded to xlsx files in database as post_type city
 function saveCity($city, $region, $country) {
     $post_args = array(
-        'post_title' => wp_strip_all_tags($city),
+        'post_title' => esc_attr(trim(($city))),
         'post_type' => 'city',
         'post_status' => 'publish',
         'meta_input' => array(
-            'region' => wp_strip_all_tags($region),
-            'country' => wp_strip_all_tags($country)
+            'region' => esc_attr(trim(($region))),
+            'country' => esc_attr(trim(($country)))
         )
     );
     $post_id = wp_insert_post($post_args, true);
