@@ -912,10 +912,8 @@ function get_password() {
 }
 
 //Function of signing in gpdeal front-end website
-function signin() {
-    $username = removeslashes(esc_attr(trim($_POST['_username'])));
-    $password = removeslashes(esc_attr($_POST['_password']));
-    if (isset($_POST['_remember']) && removeslashes(esc_attr(trim($_POST['_remember']))) == 'true') {
+function signin($username, $password, $remember = null, $redirect_to = null) {
+    if ($remember && $remember == 'true') {
         $remember = true;
     } else {
         $remember = false;
@@ -931,8 +929,8 @@ function signin() {
         $creds = array('user_login' => $user->data->user_login, 'user_password' => $password, 'remember' => $remember);
         $secure_cookie = is_ssl() ? true : false;
         $user = wp_signon($creds, $secure_cookie);
-        if (isset($_POST['redirect_to'])) {
-            wp_safe_redirect($_POST['redirect_to']);
+        if ($redirect_to) {
+            wp_safe_redirect($redirect_to);
         } else {
             wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain'))));
         }
@@ -972,7 +970,6 @@ function getGenderHoldName($gender) {
     }
 }
 
-
 //Function use to retrieve a list of cities of a specific State
 function getCurrenciesList() {
     $currencies = array(['code' => 'EU', 'name' => 'EURO'], ['code' => 'USD', 'name' => 'Dollard Americain'], ['code' => 'FCFA', 'name' => 'Franc CFA']
@@ -981,36 +978,18 @@ function getCurrenciesList() {
 }
 
 //Fonction for sending a package
-function sendPackage() {
-    if (isset($_POST['package_type']) && isset($_POST['portable_objects']) && isset($_POST['package_dimensions_length']) && isset($_POST['package_dimensions_width']) && isset($_POST['package_dimensions_height']) && isset($_POST['package_weight']) && isset($_POST['start_city']) && isset($_POST['start_date']) && isset($_POST['destination_city']) && isset($_POST['destination_date']) && isset($_POST['terms'])) {
-        $type = removeslashes(esc_attr(trim($_POST['package_type'])));
-        $content = array_map('intval', $_POST['portable_objects']);
-        $length = removeslashes(esc_attr(trim($_POST['package_dimensions_length'])));
-        $width = removeslashes(esc_attr(trim($_POST['package_dimensions_width'])));
-        $height = removeslashes(esc_attr(trim($_POST['package_dimensions_height'])));
-        $weight = removeslashes(esc_attr(trim($_POST['package_weight'])));
-        $start_city = removeslashes(esc_attr(trim($_POST['start_city'])));
-        $start_date = date('Y-m-d H:i:s', strtotime(str_replace('/', '-', removeslashes(esc_attr(trim($_POST['start_date']))))));
-        $destination_city = removeslashes(esc_attr(trim($_POST['destination_city'])));
-        $destination_date = date('Y-m-d H:i:s', strtotime(str_replace('/', '-', removeslashes(esc_attr(trim($_POST['destination_date']))))));
-        $post_title = "";
-//        $content_count = count($content);
-//        $i = 0;
-//        foreach ($content as $id) {
-//            $post_title .= get_term_by('id', $id, 'portable-object')->name;
-//            if ($i < $content_count - 1) {
-//                $post_title .= ", ";
-//            }
-//            $i++;
-//        }
-//        $current_user = wp_get_current_user();
-//        if ($current_user->user_firstname != "") {
-//            $post_title .= " " . __("envoyé(es) par", 'gpdealdomain') . " " . $current_user->user_firstname . " " . $current_user->user_lastname;
-//        } elseif ($current_user->user_lastname != "") {
-//            $post_title .= " " . __("envoyé(es) par", 'gpdealdomain') . " " . $current_user->user_lastname;
-//        } else {
-//            $post_title .= " " . __("envoyé(es) par", 'gpdealdomain') . " " . $current_user->display_name;
-//        }
+function sendPackage($package_data) {
+    if ($package_data) {
+        $type = $package_data['package_type'];
+        $content = $package_data['portable_objects'];
+        $length = $package_data['package_dimensions_length'];
+        $width = $package_data['package_dimensions_width'];
+        $height = $package_data['package_dimensions_height'];
+        $weight = $package_data['package_weight'];
+        $start_city = $package_data['start_city'];
+        $start_date = $package_data['start_date'];
+        $destination_city = $package_data['destination_city'];
+        $destination_date = $package_data['destination_date'];
 
         $start_country = "";
         $start_state = "";
@@ -1066,31 +1045,27 @@ function sendPackage() {
                 'destination-city-package' => $destination_city,
                 'arrival-date-package' => $destination_date,
                 'carrier-ID' => -1,
-                'transport-state' => 0
+                'package-state' => 0
             )
         );
-        $post_id = wp_insert_post($post_args, true);
-
-        if (!is_wp_error($post_id)) {
-            wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain') . '/' . __('expeditions', 'gpdealdomain'))));
-            exit;
-        }
+        $package_id = wp_insert_post($post_args, true);
+        return $package_id;
     }
 }
 
 //Fonction for updating information of a package even if a transport is not begin
-function updateSendPackage($post_ID) {
-    if (isset($_POST['package_type']) && isset($_POST['portable_objects']) && isset($_POST['package_dimensions_length']) && isset($_POST['package_dimensions_width']) && isset($_POST['package_dimensions_height']) && isset($_POST['package_weight']) && isset($_POST['start_city']) && isset($_POST['start_date']) && isset($_POST['destination_city']) && isset($_POST['destination_date']) && isset($_POST['terms'])) {
-        $type = removeslashes(esc_attr(trim($_POST['package_type'])));
-        $content = array_map('intval', $_POST['portable_objects']);
-        $length = removeslashes(esc_attr(trim($_POST['package_dimensions_length'])));
-        $width = removeslashes(esc_attr(trim($_POST['package_dimensions_width'])));
-        $height = removeslashes(esc_attr(trim($_POST['package_dimensions_height'])));
-        $weight = removeslashes(esc_attr(trim($_POST['package_weight'])));
-        $start_city = removeslashes(esc_attr(trim($_POST['start_city'])));
-        $start_date = date('Y-m-d H:i:s', strtotime(str_replace('/', '-', removeslashes(esc_attr(trim($_POST['start_date']))))));
-        $destination_city = removeslashes(esc_attr(trim($_POST['destination_city'])));
-        $destination_date = date('Y-m-d H:i:s', strtotime(str_replace('/', '-', removeslashes(esc_attr(trim($_POST['destination_date']))))));
+function updateSendPackage($post_ID, $package_data) {
+    if ($post_ID && $package_data) {
+        $type = $package_data['package_type'];
+        $content = $package_data['portable_objects'];
+        $length = $package_data['package_dimensions_length'];
+        $width = $package_data['package_dimensions_width'];
+        $height = $package_data['package_dimensions_height'];
+        $weight = $package_data['package_weight'];
+        $start_city = $package_data['start_city'];
+        $start_date = $package_data['start_date'];
+        $destination_city = $package_data['destination_city'];
+        $destination_date = $package_data['destination_date'];
 
         //$date = new DateTime('now');
         //$post_title = "P-".$date->format('Y-m-d H:i:s').'-'.$date->getTimestamp();
@@ -1145,34 +1120,29 @@ function updateSendPackage($post_ID) {
                 'destination-state-package' => $destination_state,
                 'destination-city-package' => $destination_city,
                 'arrival-date-package' => $destination_date,
-                'carrier-ID' => -1,
-                'transport-state' => 0
+                'carrier-ID' => -1
             )
         );
-        $post_id = wp_update_post($post_args, true);
-
-        if (!is_wp_error($post_id)) {
-            wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain') . '/' . __('expeditions', 'gpdealdomain'))));
-            exit;
-        }
+        $package_id = wp_update_post($post_args, true);
+        return $package_id;
     }
 }
 
 //Fonction for Saving a Transport offer
-function saveTransportOffer() {
-    if (isset($_POST['transport_offer_package_type']) && isset($_POST['transport_offer_transport_method']) && isset($_POST['transport_offer_price']) && isset($_POST['transport_offer_currency']) && isset($_POST['start_city']) && isset($_POST['start_date']) && isset($_POST['start_deadline']) && isset($_POST['destination_city']) && isset($_POST['destination_date']) && isset($_POST['terms'])) {
-        $package_type = array_map('intval', $_POST['transport_offer_package_type']);
-        $transport_method = removeslashes(esc_attr(trim($_POST['transport_offer_transport_method'])));
-        $transport_offer_price = removeslashes(esc_attr(trim($_POST['transport_offer_price'])));
-        $transport_offer_currency = removeslashes(esc_attr(trim($_POST['transport_offer_currency'])));
-        $start_city = removeslashes(esc_attr(trim($_POST['start_city'])));
-        $start_date = date('Y-m-d H:i:s', strtotime(str_replace('/', '-', removeslashes(esc_attr(trim($_POST['start_date']))))));
-        $start_deadline = date('Y-m-d H:i:s', strtotime(str_replace('/', '-', removeslashes(esc_attr(trim($_POST['start_deadline']))))));
-        $destination_city = removeslashes(esc_attr(trim($_POST['destination_city'])));
-        $destination_date = date('Y-m-d H:i:s', strtotime(str_replace('/', '-', removeslashes(esc_attr(trim($_POST['destination_date']))))));
+function saveTransportOffer($transport_offer_data) {
+    if ($transport_offer_data) {
+        $package_type = $transport_offer_data['transport_offer_package_type'];
+        $transport_method = $transport_offer_data['transport_offer_transport_method'];
+        $transport_offer_price = $transport_offer_data['transport_offer_price'];
+        $transport_offer_currency = $transport_offer_data['transport_offer_currency'];
+        $start_city = $transport_offer_data['start_city'];
+        $start_date = $transport_offer_data['start_date'];
+        $start_deadline = $transport_offer_data['start_deadline'];
+        $destination_city = $transport_offer_data['destination_city'];
+        $destination_date = $transport_offer_data['destination_date'];
 
         $date = new DateTime('now');
-        $post_title = "TRFR" . $date->format('Y-m-d H:i:s') . $date->getTimestamp();
+        $post_title = "TRFR-" . $date->format('Y-m-d H:i:s') .'-'. $date->getTimestamp();
 
         $start_country = "";
         $start_state = "";
@@ -1224,30 +1194,26 @@ function saveTransportOffer() {
                 'destination-city-transport-offer' => $destination_city,
                 'arrival-date-transport-offer' => $destination_date,
                 'transport-state' => 0,
-                'packages-IDs' => array()
+                'packages-IDs' => -1
             )
         );
         $post_id = wp_insert_post($post_args, true);
-
-        if (!is_wp_error($post_id)) {
-            wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain') . '/' . __('offres-de-transport', 'gpdealdomain'))));
-            exit;
-        }
+        return $post_id;
     }
 }
 
 //Fonction for Updating informations of Transport offer a package
-function updateTransportOffer($post_ID) {
-    if (isset($_POST['transport_offer_package_type']) && isset($_POST['transport_offer_transport_method']) && isset($_POST['transport_offer_price']) && isset($_POST['transport_offer_currency']) && isset($_POST['start_city']) && isset($_POST['start_date']) && isset($_POST['start_deadline']) && isset($_POST['destination_city']) && isset($_POST['destination_date']) && isset($_POST['terms'])) {
-        $package_type = array_map('intval', $_POST['transport_offer_package_type']);
-        $transport_method = removeslashes(esc_attr(trim($_POST['transport_offer_transport_method'])));
-        $transport_offer_price = removeslashes(esc_attr(trim($_POST['transport_offer_price'])));
-        $transport_offer_currency = removeslashes(esc_attr(trim($_POST['transport_offer_currency'])));
-        $start_city = removeslashes(esc_attr(trim($_POST['start_city'])));
-        $start_date = date('Y-m-d H:i:s', strtotime(str_replace('/', '-', removeslashes(esc_attr(trim($_POST['start_date']))))));
-        $start_deadline = date('Y-m-d H:i:s', strtotime(str_replace('/', '-', removeslashes(esc_attr(trim($_POST['start_deadline']))))));
-        $destination_city = removeslashes(esc_attr(trim($_POST['destination_city'])));
-        $destination_date = date('Y-m-d H:i:s', strtotime(str_replace('/', '-', removeslashes(esc_attr(trim($_POST['destination_date']))))));
+function updateTransportOffer($post_ID, $transport_offer_data) {
+    if ($transport_offer_data) {
+        $package_type = $transport_offer_data['transport_offer_package_type'];
+        $transport_method = $transport_offer_data['transport_offer_transport_method'];
+        $transport_offer_price = $transport_offer_data['transport_offer_price'];
+        $transport_offer_currency = $transport_offer_data['transport_offer_currency'];
+        $start_city = $transport_offer_data['start_city'];
+        $start_date = $transport_offer_data['start_date'];
+        $start_deadline = $transport_offer_data['start_deadline'];
+        $destination_city = $transport_offer_data['destination_city'];
+        $destination_date = $transport_offer_data['destination_date'];
 
         //$date = new DateTime('now');
         //$post_title = "TRFR".$date->format('Y-m-d H:i:s').$date->getTimestamp();
@@ -1302,16 +1268,11 @@ function updateTransportOffer($post_ID) {
                 'destination-state-transport-offer' => $destination_state,
                 'destination-city-transport-offer' => $destination_city,
                 'arrival-date-transport-offer' => $destination_date,
-                'transport-state' => 0,
                 'packages-IDs' => -1
             )
         );
-        $post_id = wp_update_post($post_args, true);
-
-        if (!is_wp_error($post_id)) {
-            wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain') . '/' . __('offres-de-transport', 'gpdealdomain'))));
-            exit;
-        }
+        $transport_offer_id = wp_update_post($post_args, true);
+        return $transport_offer_id;
     }
 }
 
@@ -1408,23 +1369,18 @@ function getTransportStatus($status) {
 }
 
 // This Function return arguments of a query for finding transport offers
-function getWPQueryArgsForCarrierSearch() {
+function getWPQueryArgsForCarrierSearch($search_data) {
     $today = date('Y-m-d H:i:s', strtotime('today'));
     $args = array(
         'post_type' => 'transport-offer',
         "post_status" => 'publish'
     );
-    if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST["submit_search_transport_offers"]) && removeslashes(esc_attr(trim($_POST["submit_search_transport_offers"] = "yes")))) {
-        $package_type = array_map('intval', isset($_POST['package_type']) ? $_POST['package_type'] : array());
-        //$transport_method = array_map('intval', isset($_POST['transport_method']) ? $_POST['transport_method'] : array());
-        $start_country = removeslashes(esc_attr(trim($_POST['start_country'])));
-        //$start_state = removeslashes(esc_attr(trim($_POST['start_state']));
-        $start_city = removeslashes(esc_attr(trim($_POST['start_city'])));
-        $start_date = removeslashes(esc_attr(trim($_POST['start_date'])));
-        $destination_country = removeslashes(esc_attr(trim($_POST['destination_country'])));
-        //$destination_state = removeslashes(esc_attr(trim($_POST['destination_state']));
-        $destination_city = removeslashes(esc_attr(trim($_POST['destination_city'])));
-        $destination_date = removeslashes(esc_attr(trim($_POST['destination_date'])));
+    if ($search_data) {
+        $package_type = $search_data['package_type'];
+        $start_city = $search_data['start_city'];
+        $start_date = $search_data['start_date'];
+        $destination_city = $search_data['destination_city'];
+        $destination_date = $search_data['destination_date'];
 
         if (!empty($package_type)) {
             $tax_query[] = array(
@@ -1530,18 +1486,17 @@ function getWPQueryArgsForCarrierSearch() {
 }
 
 // This Function return arguments of a query for finding unsatisfied send package
-function getWPQueryArgsForUnsatifiedSendPackages() {
+function getWPQueryArgsForUnsatifiedSendPackages($search_data) {
     $args = array(
         'post_type' => 'package',
         "post_status" => 'publish'
     );
-    if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST["submit_search_unsatisfied_packages"]) && removeslashes(esc_attr(trim($_POST["submit_search_unsatisfied_packages"] = "yes")))) {
-
-        $package_type = array_map('intval', isset($_POST['package_type']) ? $_POST['package_type'] : array());
-        $start_city = removeslashes(esc_attr(trim($_POST['start_city'])));
-        $start_date = removeslashes(esc_attr(trim($_POST['start_date'])));
-        $destination_city = removeslashes(esc_attr(trim($_POST['destination_city'])));
-        $destination_date = removeslashes(esc_attr(trim($_POST['destination_date'])));
+    if ($search_data) {
+        $package_type = $search_data['package_type'];
+        $start_city = $search_data['start_city'];
+        $start_date = $search_data['start_date'];
+        $destination_city = $search_data['destination_city'];
+        $destination_date = $search_data['destination_date'];
 
         if (!empty($package_type)) {
             $tax_query[] = array(
@@ -1645,15 +1600,15 @@ function getWPQueryArgsForUnsatifiedSendPackages() {
 }
 
 // This Function return arguments of a query for finding transport offers with can interest someone
-function getWPQueryArgsCarrierSearchForWhichCanInterest($exclude_ids = array()) {
+function getWPQueryArgsCarrierSearchForWhichCanInterest($search_data, $exclude_ids = array()) {
     $args = array();
     $today = date('Y-m-d H:i:s', strtotime('today'));
-    if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST["submit_search_transport_offers"]) && removeslashes(esc_attr(trim($_POST["submit_search_transport_offers"]))) == "yes") {
-        $package_type = array_map('intval', isset($_POST['package_type']) ? $_POST['package_type'] : array());
-        $start_city = removeslashes(esc_attr(trim($_POST['start_city'])));
-        $start_date = removeslashes(esc_attr(trim($_POST['start_date'])));
-        $destination_city = removeslashes(esc_attr(trim($_POST['destination_city'])));
-        $destination_date = removeslashes(esc_attr(trim($_POST['destination_date'])));
+    if ($search_data) {
+        $package_type = $search_data['package_type'];
+        $start_city = $search_data['start_city'];
+        $start_date = $search_data['start_date'];
+        $destination_city = $search_data['destination_city'];
+        $destination_date = $search_data['destination_date'];
         if ($start_city || $destination_city) {
             $args = array(
                 "post_type" => "transport-offer",
@@ -1781,20 +1736,21 @@ function getWPQueryArgsCarrierSearchForWhichCanInterest($exclude_ids = array()) 
 }
 
 // This Function return arguments of a query for finding unsatisfied send package with can interest someone
-function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($exclude_ids = array()) {
-    if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST["submit_search_unsatisfied_packages"]) && removeslashes(esc_attr(trim($_POST["submit_search_unsatisfied_packages"]))) == "yes") {
-        $package_type = array_map('intval', isset($_POST['package_type']) ? $_POST['package_type'] : array());
-        $start_city = removeslashes(esc_attr(trim($_POST['start_city'])));
-        $start_date = removeslashes(esc_attr(trim($_POST['start_date'])));
-        $destination_city = removeslashes(esc_attr(trim($_POST['destination_city'])));
-        $destination_date = removeslashes(esc_attr(trim($_POST['destination_date'])));
+function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($search_data, $exclude_ids = array()) {
+    $today = date('Y-m-d H:i:s', strtotime('today'));
+    $args = array(
+        'post_type' => 'package',
+        "post_status" => 'publish',
+        "post__not_in" => $exclude_ids
+    );
+    if ($search_data) {
+        $package_type = $search_data['package_type'];
+        $start_city = $search_data['start_city'];
+        $start_date = $search_data['start_date'];
+        $destination_city = $search_data['destination_city'];
+        $destination_date = $search_data['destination_date'];
+
         if ($start_city || $destination_city) {
-            $today = date('Y-m-d H:i:s', strtotime('today'));
-            $args = array(
-                'post_type' => 'package',
-                "post_status" => 'publish',
-                "post__not_in" => $exclude_ids
-            );
             if (!empty($package_type)) {
                 $tax_query[] = array(
                     'taxonomy' => 'type_package',
@@ -2058,7 +2014,7 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
             if (count($destination_localities) == 2) {
                 $destination_city = $destination_localities[0];
                 $destination_country = $destination_localities[1];
-                $destination_state= getRegionByCityAndCountry($destination_city, $destination_country);
+                $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
             } elseif (count($destination_localities) == 3) {
                 $destination_city = $destination_localities[0];
                 $destination_state = $destination_localities[1];
@@ -2261,7 +2217,7 @@ function getRegionByCityAndCountry($city, $country) {
     );
     $cities = new WP_Query($args);
     if ($cities->have_posts()) {
-        while ($cities->have_posts()){
+        while ($cities->have_posts()) {
             $cities->the_post();
             $region = get_post_meta(get_the_ID(), 'region', true);
         }
