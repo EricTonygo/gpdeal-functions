@@ -970,6 +970,30 @@ function getGenderHoldName($gender) {
     }
 }
 
+//Function use to retrieve a list of countries online
+function getCountriesList() {
+    $countries = array(['code' => 'AL', 'flag' => 'al', 'name' => 'Alabama'], ['code' => 'AK', 'flag' => 'ak', 'name' => 'Alaska'], ['code' => 'AZ', 'flag' => 'az', 'name' => 'Arizona'],
+        ['code' => 'AR', 'flag' => 'ar', 'name' => 'Arkansas'], ['code' => 'CA', 'flag' => 'ca', 'name' => 'California']
+    );
+    return $countries;
+}
+
+//Function use to retrieve a list of States or Regions of a specific country by countryCode
+function getStatesListOfCountry($countryCode = null) {
+    $states = array(['code' => 'R1', 'flag' => 'al', 'name' => 'Region 1'], ['code' => 'R2', 'flag' => 'ak', 'name' => 'Region 2'], ['code' => 'R3', 'flag' => 'az', 'name' => 'Region 3'],
+        ['code' => 'R4', 'flag' => 'ar', 'name' => 'Region 4'], ['code' => 'R5', 'flag' => 'ca', 'name' => 'Region 5']
+    );
+    return $states;
+}
+
+//Function use to retrieve a list of cities of a specific State
+function getCitiesListOfState($stateCode = null) {
+    $cities = array(['code' => 'V1', 'flag' => 'al', 'name' => 'Ville 1'], ['code' => 'V2', 'flag' => 'ak', 'name' => 'Ville 2'], ['code' => 'V3', 'flag' => 'az', 'name' => 'Ville 3'],
+        ['code' => 'V4', 'flag' => 'ar', 'name' => 'Ville 4'], ['code' => 'V5', 'flag' => 'ca', 'name' => 'Ville 5']
+    );
+    return $cities;
+}
+
 //Function use to retrieve a list of cities of a specific State
 function getCurrenciesList() {
     $currencies = array(['code' => 'EU', 'name' => 'EURO'], ['code' => 'USD', 'name' => 'Dollard Americain'], ['code' => 'FCFA', 'name' => 'Franc CFA']
@@ -1045,7 +1069,7 @@ function sendPackage($package_data) {
                 'destination-city-package' => $destination_city,
                 'arrival-date-package' => $destination_date,
                 'carrier-ID' => -1,
-                'package-state' => 0
+                'package-status' => 1
             )
         );
         $package_id = wp_insert_post($post_args, true);
@@ -1120,7 +1144,6 @@ function updateSendPackage($post_ID, $package_data) {
                 'destination-state-package' => $destination_state,
                 'destination-city-package' => $destination_city,
                 'arrival-date-package' => $destination_date,
-                'carrier-ID' => -1
             )
         );
         $package_id = wp_update_post($post_args, true);
@@ -1142,7 +1165,7 @@ function saveTransportOffer($transport_offer_data) {
         $destination_date = $transport_offer_data['destination_date'];
 
         $date = new DateTime('now');
-        $post_title = "TRFR-" . $date->format('Y-m-d H:i:s') .'-'. $date->getTimestamp();
+        $post_title = "TRFR-" . $date->format('Y-m-d H:i:s') . '-' . $date->getTimestamp();
 
         $start_country = "";
         $start_state = "";
@@ -1193,12 +1216,12 @@ function saveTransportOffer($transport_offer_data) {
                 'destination-state-transport-offer' => $destination_state,
                 'destination-city-transport-offer' => $destination_city,
                 'arrival-date-transport-offer' => $destination_date,
-                'transport-state' => 0,
+                'transport-status' => 1,
                 'packages-IDs' => -1
             )
         );
-        $post_id = wp_insert_post($post_args, true);
-        return $post_id;
+        $transport_offer_id = wp_insert_post($post_args, true);
+        return $transport_offer_id;
     }
 }
 
@@ -1268,7 +1291,7 @@ function updateTransportOffer($post_ID, $transport_offer_data) {
                 'destination-state-transport-offer' => $destination_state,
                 'destination-city-transport-offer' => $destination_city,
                 'arrival-date-transport-offer' => $destination_date,
-                'packages-IDs' => -1
+                //'transport-status' => 1
             )
         );
         $transport_offer_id = wp_update_post($post_args, true);
@@ -1353,18 +1376,45 @@ function contactus() {
     }
 }
 
+function getPackageStatus($status) {
+    switch ($status) {
+        case -1:
+            return "Recherche transporteur";
+        case 1:
+            return "Recherche transporteur";
+        case 2:
+            return "Transaction en cours";
+        case 3:
+            return "Transaction validée";
+        case 4:
+            return "Evaluée/cloturée";
+        case 5:
+            return "Expirée";
+        case 6:
+            return "Annulée";
+        default :
+            return "Recherche transporteur";
+    }
+}
+
 function getTransportStatus($status) {
     switch ($status) {
         case -1:
-            return "Pas en transport";
-        case 0:
-            return "Pas en transport";
+            return "En cours";
         case 1:
             return "En cours";
         case 2:
-            return "Livré";
+            return "Expirée";
+        case 3:
+            return "Annulée";
+//        case 4:
+//            return "Evaluée/cloturée";
+//        case 5:
+//            return "Expirée";
+//        case 6:
+//            return "Annulée";
         default :
-            return "";
+            return "En cours";
     }
 }
 
@@ -1394,7 +1444,12 @@ function getWPQueryArgsForCarrierSearch($search_data) {
 
 
         $meta_query = array(
-            'relation' => 'AND'
+            'relation' => 'AND',
+//            array(
+//                'key' => 'transport-status',
+//                'value' => 3,
+//                'compare' => '!=',
+//            )
         );
 
 
@@ -1627,7 +1682,12 @@ function getWPQueryArgsCarrierSearchForWhichCanInterest($search_data, $exclude_i
 
 
             $meta_query = array(
-                'relation' => 'AND'
+                'relation' => 'AND',
+//                array(
+//                    'key' => 'transport-status',
+//                    'value' => 3,
+//                    'compare' => '!=',
+//                )
             );
 
 
@@ -1896,6 +1956,11 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters() {
             if ($start_state == "" && $start_country == "") {
                 $meta_query = array(
                     'relation' => 'AND',
+//                    array(
+//                        'key' => 'transport-status',
+//                        'value' => 3,
+//                        'compare' => '!=',
+//                    ),
                     array(
                         'key' => 'deadline-of-proposition-transport-offer',
                         'value' => $today,
@@ -1926,6 +1991,11 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters() {
                     'relation' => 'OR',
                     array(
                         'relation' => 'AND',
+//                        array(
+//                            'key' => 'transport-status',
+//                            'value' => 3,
+//                            'compare' => '!=',
+//                        ),
                         array(
                             'key' => 'deadline-of-proposition-transport-offer',
                             'value' => $today,
@@ -1945,6 +2015,11 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters() {
                     ),
                     array(
                         'relation' => 'AND',
+//                        array(
+//                            'key' => 'transport-status',
+//                            'value' => 3,
+//                            'compare' => '!=',
+//                        ),
                         array(
                             'key' => 'deadline-of-proposition-transport-offer',
                             'value' => $today,
@@ -1966,6 +2041,11 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters() {
             } else {
                 $meta_query = array(
                     'relation' => 'AND',
+//                    array(
+//                        'key' => 'transport-status',
+//                        'value' => 3,
+//                        'compare' => '!=',
+//                    ),
                     array(
                         'key' => 'deadline-of-proposition-transport-offer',
                         'value' => $today,
@@ -2025,6 +2105,11 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
             if ($destination_state == "" && $destination_country == "") {
                 $meta_query = array(
                     'relation' => 'AND',
+//                    array(
+//                        'key' => 'transport-status',
+//                        'value' => 3,
+//                        'compare' => '!=',
+//                    ),
                     array(
                         'key' => 'deadline-of-proposition-transport-offer',
                         'value' => $today,
@@ -2055,6 +2140,11 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
                     'relation' => 'OR',
                     array(
                         'relation' => 'AND',
+//                        array(
+//                            'key' => 'transport-status',
+//                            'value' => 3,
+//                            'compare' => '!=',
+//                        ),
                         array(
                             'key' => 'deadline-of-proposition-transport-offer',
                             'value' => $today,
@@ -2074,6 +2164,11 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
                     ),
                     array(
                         'relation' => 'AND',
+//                        array(
+//                            'key' => 'transport-status',
+//                            'value' => 3,
+//                            'compare' => '!=',
+//                        ),
                         array(
                             'key' => 'deadline-of-proposition-transport-offer',
                             'value' => $today,
@@ -2095,6 +2190,11 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
             } else {
                 $meta_query = array(
                     'relation' => 'AND',
+//                    array(
+//                        'key' => 'transport-status',
+//                        'value' => 3,
+//                        'compare' => '!=',
+//                    ),
                     array(
                         'key' => 'deadline-of-proposition-transport-offer',
                         'value' => $today,
@@ -2210,9 +2310,11 @@ function getRegionByCityAndCountry($city, $country) {
         'post_per_page' => 1,
         'title' => $city,
         'meta_query' => array(
-            'key' => 'country',
-            'value' => $country,
-            'compare' => '='
+            array(
+                'key' => 'country',
+                'value' => $country,
+                'compare' => '='
+            )
         )
     );
     $cities = new WP_Query($args);
