@@ -543,9 +543,8 @@ function register_user() {
             $gender = removeslashes(esc_attr(trim($_POST['gender'])));
             $number_street = removeslashes(esc_attr(trim($_POST['number_street'])));
             $complement_address = removeslashes(esc_attr(trim($_POST['complement_address'])));
-            $country = removeslashes(esc_attr(trim($_POST['country'])));
-            $region_province_state = removeslashes(esc_attr(trim($_POST['state_country'])));
-            $commune_city_locality = removeslashes(esc_attr(trim($_POST['city_state'])));
+            $locality = removeslashes(esc_attr(trim($_POST['locality'])));
+            $country_region_city = getCountryRegionCityInformations($locality);
             $mobile_phone_number = removeslashes(esc_attr(trim($_POST['mobile_phone_number'])));
             $test_question_ID = removeslashes(esc_attr(trim($_POST['test_question'])));
             $answer_test_question = removeslashes(esc_attr(trim($_POST['answer_test_question'])));
@@ -569,9 +568,9 @@ function register_user() {
                 update_user_meta($user_id, 'gender', $gender);
                 update_user_meta($user_id, 'number-street', $number_street);
                 update_user_meta($user_id, 'complement-address', $complement_address);
-                update_user_meta($user_id, 'country', $country);
-                update_user_meta($user_id, 'region-province-state', $region_province_state);
-                update_user_meta($user_id, 'commune-city-locality', $commune_city_locality);
+                update_user_meta($user_id, 'country', $country_region_city['country']);
+                update_user_meta($user_id, 'region-province-state', $country_region_city['region']);
+                update_user_meta($user_id, 'commune-city-locality', $country_region_city['city']);
                 update_user_meta($user_id, 'mobile-phone-number', $mobile_phone_number);
                 update_user_meta($user_id, 'test-question-ID', $test_question_ID);
                 update_user_meta($user_id, 'answer-test-question', $answer_test_question);
@@ -604,9 +603,8 @@ function register_user() {
             $company_identity_tva_number_pro = removeslashes(esc_attr(trim($_POST['company_identity_tva_number'])));
             $number_street_pro = removeslashes(esc_attr(trim($_POST['number_street'])));
             $complement_address_pro = removeslashes(esc_attr(trim($_POST['complement_address'])));
-            $country_pro = removeslashes(esc_attr(trim($_POST['country'])));
-            $region_province_state_pro = removeslashes(esc_attr(trim($_POST['state_country'])));
-            $commune_city_locality_pro = removeslashes(esc_attr(trim($_POST['city_state'])));
+            $locality_pro = removeslashes(esc_attr(trim($_POST['locality_pro'])));
+            $country_region_city_pro = getCountryRegionCityInformations($locality_pro);
             $postal_code_pro = removeslashes(esc_attr(trim($_POST['postal_code'])));
             $home_phone_number_pro = removeslashes(esc_attr(trim($_POST['home_phone_number'])));
             $test_question_ID_pro = removeslashes(esc_attr(trim($_POST['test_question_pro'])));
@@ -647,9 +645,9 @@ function register_user() {
                 update_user_meta($user_id, 'company-identity-tva-number', $company_identity_tva_number_pro);
                 update_user_meta($user_id, 'number-street', $number_street_pro);
                 update_user_meta($user_id, 'complement-address', $complement_address_pro);
-                update_user_meta($user_id, 'country', $country_pro);
-                update_user_meta($user_id, 'region-province-state', $region_province_state_pro);
-                update_user_meta($user_id, 'commune-city-locality', $commune_city_locality_pro);
+                update_user_meta($user_id, 'country', $country_region_city_pro['country']);
+                update_user_meta($user_id, 'region-province-state', $country_region_city_pro['region']);
+                update_user_meta($user_id, 'commune-city-locality', $country_region_city_pro['city']);
                 update_user_meta($user_id, 'postal-code', $postal_code_pro);
                 update_user_meta($user_id, 'home-phone-number', $home_phone_number_pro);
                 update_user_meta($user_id, 'civility-representative1', $civility_represntative1_pro);
@@ -725,9 +723,8 @@ function update_user($user_id) {
             $gender = removeslashes(esc_attr(trim($_POST['gender'])));
             $number_street = removeslashes(esc_attr(trim($_POST['number_street'])));
             $complement_address = removeslashes(esc_attr(trim($_POST['complement_address'])));
-            $country = removeslashes(esc_attr(trim($_POST['country'])));
-            $region_province_state = removeslashes(esc_attr(trim($_POST['state_country'])));
-            $commune_city_locality = removeslashes(esc_attr(trim($_POST['city_state'])));
+            $locality = removeslashes(esc_attr(trim($_POST['locality'])));
+            $country_region_city = getCountryRegionCityInformations($locality);
             $mobile_phone_number = removeslashes(esc_attr(trim($_POST['mobile_phone_number'])));
             $test_question_ID = removeslashes(esc_attr(trim($_POST['test_question'])));
             $answer_test_question = removeslashes(esc_attr(trim($_POST['answer_test_question'])));
@@ -751,9 +748,9 @@ function update_user($user_id) {
                 update_user_meta($user_id, 'gender', $gender);
                 update_user_meta($user_id, 'number-street', $number_street);
                 update_user_meta($user_id, 'complement-address', $complement_address);
-                update_user_meta($user_id, 'country', $country);
-                update_user_meta($user_id, 'region-province-state', $region_province_state);
-                update_user_meta($user_id, 'commune-city-locality', $commune_city_locality);
+                update_user_meta($user_id, 'country', $country_region_city['country']);
+                update_user_meta($user_id, 'region-province-state', $country_region_city['region']);
+                update_user_meta($user_id, 'commune-city-locality', $country_region_city['city']);
                 update_user_meta($user_id, 'mobile-phone-number', $mobile_phone_number);
                 update_user_meta($user_id, 'test-question-ID', $test_question_ID);
                 update_user_meta($user_id, 'answer-test-question', $answer_test_question);
@@ -785,9 +782,8 @@ function update_user($user_id) {
             $company_identity_tva_number_pro = removeslashes(esc_attr(trim($_POST['company_identity_tva_number'])));
             $number_street_pro = removeslashes(esc_attr(trim($_POST['number_street'])));
             $complement_address_pro = removeslashes(esc_attr(trim($_POST['complement_address'])));
-            $country_pro = removeslashes(esc_attr(trim($_POST['country'])));
-            $region_province_state_pro = removeslashes(esc_attr(trim($_POST['state_country'])));
-            $commune_city_locality_pro = removeslashes(esc_attr(trim($_POST['city_state'])));
+            $locality_pro = removeslashes(esc_attr(trim($_POST['locality_pro'])));
+            $country_region_city_pro = getCountryRegionCityInformations($locality_pro);
             $postal_code_pro = removeslashes(esc_attr(trim($_POST['postal_code'])));
             $home_phone_number_pro = removeslashes(esc_attr(trim($_POST['home_phone_number'])));
             $test_question_ID_pro = removeslashes(esc_attr(trim($_POST['test_question_pro'])));
@@ -827,9 +823,9 @@ function update_user($user_id) {
                 update_user_meta($user_id, 'company-identity-tva-number', $company_identity_tva_number_pro);
                 update_user_meta($user_id, 'number-street', $number_street_pro);
                 update_user_meta($user_id, 'complement-address', $complement_address_pro);
-                update_user_meta($user_id, 'country', $country_pro);
-                update_user_meta($user_id, 'region-province-state', $region_province_state_pro);
-                update_user_meta($user_id, 'commune-city-locality', $commune_city_locality_pro);
+                update_user_meta($user_id, 'country', $country_region_city_pro['country']);
+                update_user_meta($user_id, 'region-province-state', $country_region_city_pro['region']);
+                update_user_meta($user_id, 'commune-city-locality', $country_region_city_pro['city']);
                 update_user_meta($user_id, 'postal-code', $postal_code_pro);
                 update_user_meta($user_id, 'home-phone-number', $home_phone_number_pro);
                 update_user_meta($user_id, 'civility-representative1', $civility_represntative1_pro);
@@ -1291,7 +1287,7 @@ function updateTransportOffer($post_ID, $transport_offer_data) {
                 'destination-state-transport-offer' => $destination_state,
                 'destination-city-transport-offer' => $destination_city,
                 'arrival-date-transport-offer' => $destination_date,
-                //'transport-status' => 1
+            //'transport-status' => 1
             )
         );
         $transport_offer_id = wp_update_post($post_args, true);
@@ -1682,12 +1678,7 @@ function getWPQueryArgsCarrierSearchForWhichCanInterest($search_data, $exclude_i
 
 
             $meta_query = array(
-                'relation' => 'AND',
-//                array(
-//                    'key' => 'transport-status',
-//                    'value' => 3,
-//                    'compare' => '!=',
-//                )
+                'relation' => 'AND'
             );
 
 
@@ -2326,4 +2317,30 @@ function getRegionByCityAndCountry($city, $country) {
     }
     wp_reset_postdata();
     return $region;
+}
+
+function getCountryRegionCityInformations($locality) {
+    $country_region_city = array();
+    if ($locality && $locality != "") {
+        $country = "";
+        $state = "";
+        $city = $locality;
+        //array containing city name, region name, and country name of start
+        $localities = explode(", ", $city);
+        if (count($localities) == 2) {
+            $city = $localities[0];
+            $country = $localities[1];
+            $state = getRegionByCityAndCountry($city, $country);
+        } elseif (count($localities) == 3) {
+            $city = $localities[0];
+            $state = $localities[1];
+            $country = $localities[2];
+        }
+        $country_region_city = array(
+            "country" => $country,
+            "region" => $state,
+            "city" => $city
+        );
+    }
+    return $country_region_city;
 }
