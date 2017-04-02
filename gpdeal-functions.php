@@ -1,5 +1,4 @@
 <?php
-
 /*
   Plugin Name: Global Parcel Deal Custom functions
   Description: L'ensemble des fonctions globales du site.
@@ -392,6 +391,46 @@ function post_type_question_init() {
     register_post_type('question', $args);
 }
 
+function post_type_evaluation_init() {
+    $labels = array(
+        'name' => _x('Evaluations', 'post type general name', 'gpdealdomain'),
+        'singular_name' => _x('Evaluation', 'post type singular name', 'gpdealdomain'),
+        'menu_name' => _x('Evaluations', 'admin menu', 'gpdealdomain'),
+        'name_admin_bar' => _x('Evaluation', 'add new on admin bar', 'gpdealdomain'),
+        'add_new' => _x('Add New', 'evaluation', 'gpdealdomain'),
+        'add_new_item' => __('Add New Evaluation', 'gpdealdomain'),
+        'new_item' => __('New Evaluation', 'gpdealdomain'),
+        'edit_item' => __('Edit Evaluation', 'gpdealdomain'),
+        'view_item' => __('View Evaluation', 'gpdealdomain'),
+        'all_items' => __('All Evaluations', 'gpdealdomain'),
+        'search_items' => __('Search Evaluations', 'gpdealdomain'),
+        'parent_item_colon' => __('Parent Evaluations:', 'gpdealdomain'),
+        'not_found' => __('No evaluations found.', 'gpdealdomain'),
+        'not_found_in_trash' => __('No evaluations found in Trash.', 'gpdealdomain')
+    );
+
+    $args = array(
+        'labels' => $labels,
+        'description' => __('This is a post type for the evaluation.', 'gpdealdomain'),
+        'public' => true,
+        'publicly_queryable' => true,
+        'exclude_from_search' => true,
+        'show_ui' => true,
+        'show_in_menu' => true,
+        'show_in_rest' => true,
+        'delete_with_user' => true,
+        'query_var' => true,
+        'rewrite' => array('slug' => 'evaluation'),
+        'capability_type' => 'post',
+        'has_archive' => true,
+        'hierarchical' => false,
+        'menu_position' => null,
+        'supports' => array('title', 'author', 'thumbnail', 'excerpt', 'comments')
+    );
+
+    register_post_type('evaluation', $args);
+}
+
 function my_custom_init() {
     add_role('particular', __('Particular', 'gpdealDomain'), array('read' => true, 'publish_posts' => true, 'edit_posts' => true));
     add_role('professional', __('Professional', 'gpdealDomain'), array('read' => true, 'publish_posts' => true, 'edit_posts' => true));
@@ -399,6 +438,7 @@ function my_custom_init() {
     post_type_transport_offer_init();
     post_type_package_init();
     post_type_question_init();
+    post_type_evaluation_init();
     post_type_term_use_init();
     post_type_city_init();
     create_transport_offer_taxonomies();
@@ -1147,6 +1187,194 @@ function updateSendPackage($post_ID, $package_data) {
     }
 }
 
+//Function to get and echo all reply of comment recursively
+function getAndechoAllReply($evaluation_id, $comment_id, $transport_offer_link) {
+    global $current_user;
+    $comments_children_view_content = "";
+    if ($evaluation_id && $comment_id) {
+        $comments_children = get_comments(array('post_id' => $evaluation_id, "parent" => $comment_id, "orderby" => "comment_date", "order" => "asc"));
+        $current_user_comments_count = get_comments(array('post_id' => $evaluation_id, "user_id" => $current_user->ID, 'count' => true));
+        if ($comments_children && !empty($comments_children)) {
+            ob_start();
+            ?>
+            <div class="comments">
+                <?php
+                foreach ($comments_children as $comment):
+                    $comment_user = get_userdata($comment->user_id);
+                    ?>
+                    <div class="comment">
+                        <a class="avatar">
+                            <img src="<?php echo get_template_directory_uri() ?>/assets/images/avatar.png">
+                        </a>
+                        <div class="content">
+                            <a class="author"><?php echo $comment_user->user_login; ?></a>
+                            <div class="metadata">
+                                <div class="date"><?php
+                                    $date = apply_filters('get_comment_time', $comment->comment_date, 'U', false, true, $comment);
+                                    echo "a commenté il y a " . human_time_diff(strtotime($date), current_time('timestamp'));
+                                    ?></div>
+                            </div>
+                            <div class="text">
+                                <p><?php echo $comment->comment_content; ?></p>
+                            </div>
+                            <?php if ($current_user_comments_count == 0): ?>
+                                <div class="actions">
+                                    <a id="show_comment_reply_form<?php echo $comment->comment_ID; ?>" onclick="show_comment_reply_form(<?php echo $comment->comment_ID; ?>)" class="reply"><?php echo __("Répondre", "gpdealdomain") ?></a>
+                                    <a id="hide_comment_reply_form<?php echo $comment->comment_ID; ?>" onclick="hide_comment_reply_form(<?php echo $comment->comment_ID; ?>)" class="reply" style="display: none"><?php echo __("Annuler", "gpdealdomain") ?></a>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <?php echo getAndechoAllReply($evaluation_id, $comment->comment_ID, $transport_offer_link); ?>
+                    </div>
+                    <?php if ($current_user_comments_count == 0): ?>
+                        <form id="comment_reply_form<?php echo $comment->comment_ID; ?>" class="ui reply form add_comment_reply_form" method="POST" action="<?php echo $transport_offer_link; ?>" onsubmit="add_comment_reply(event, <?php echo $comment->comment_ID; ?>)" style="display: none">
+                            <div class="field">
+                                <textarea name="comment_content"></textarea>
+                            </div>
+                            <input type="hidden" name="action" value="add-comment-reply">
+                            <input type="hidden" name="evaluation_id" value="<?php echo $evaluation_id; ?>">
+                            <input type="hidden" name="comment_parent_id" value="<?php echo $comment->comment_ID; ?>">
+                            <div class="field">
+                                <div id="server_error_message<?php echo $comment->comment_ID; ?>" class="ui negative message" style="display:none">
+                                    <i class="close icon"></i>
+                                    <div id="server_error_content<?php echo $comment->comment_ID; ?>" class="header">Internal server error</div>
+                                </div>
+                                <div id="error_name_message<?php echo $comment->comment_ID; ?>" class="ui error message" style="display: none">
+                                    <i class="close icon"></i>
+                                    <div id="error_name_header<?php echo $comment->comment_ID; ?>" class="header"></div>
+                                    <ul id="error_name_list<?php echo $comment->comment_ID; ?>" class="list">
+
+                                    </ul>
+                                </div>
+                            </div>
+                            <button class="ui blue submit icon button">
+                                <i class="icon edit"></i> Répondre
+                            </button>
+                        </form>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
+            <?php
+            $comments_children_view_content = ob_get_contents();
+            ob_end_clean();
+        }
+    }
+    return $comments_children_view_content;
+}
+
+//Function for getting total statistique of evalation of spécific transport offer
+function getTotalStatistiticsEvaluation($transport_offer_id) {
+    $statistics = array("Objet livré" => array("Oui" => 0, "Non" => 0, "vote_count" => 0), "Etat des objets" => array("Non conforme" => 0, "Conforme" => 0, "vote_count" => 0), "Délais de livraison" => array("Satisfaisant" => 0, "Moyen" => 0, "Non satisfaisant" => 0, "vote_count" => 0), "Coût" => array("Economique" => 0, "Juste" => 0, "Elevé" => 0, "vote_count" => 0), "Transporteur à recommander" => array("Pas du tout" => 0, "Moyennement" => 0, "Tout le temps" => 0, "vote_count" => 0));
+    $evaluations = new WP_Query(array('post_type' => 'evaluation', 'post_per_page' => -1, "post_status" => 'publish', 'orderby' => 'post_date', 'order' => 'DESC', 'meta_query' => array(array('key' => 'transport-offer-ID', 'value' => $transport_offer_id, 'compare' => '='))));
+    if ($evaluations->have_posts()) {
+        while ($evaluations->have_posts()) {
+            $evaluations->the_post();
+            $questions = get_post_meta(get_the_ID(), 'questions', true);
+            $responses = get_post_meta(get_the_ID(), 'responses', true);
+            if (is_array($questions) && is_array($responses) && count($questions) == 5 && count($responses) == 5){
+                for ($i=0; $i< count($questions); $i++) {
+                    if($responses[$i] && $responses[$i]!=""){
+                        $statistics[$questions[$i]][$responses[$i]]++;
+                        $statistics[$questions[$i]]["vote_count"]++;
+                    }
+                }
+            }
+        }
+    }
+     wp_reset_postdata();
+    foreach ($statistics as $statistic_key => $statistic) {
+        foreach ($statistic as $key => $value) {
+            if($key != "vote_count"){
+                $statistic[$key] = $value*100/$statistic["vote_count"];
+            }            
+        }
+        $statistics[$statistic_key] = $statistic;
+    }
+   return $statistics;
+}
+
+//Function for adding a comment to an evaluation 
+function add_comment_reply($evaluation_id, $comment_parent_id, $comment_content) {
+    global $current_user;
+    $comment_id = null;
+    if ($evaluation_id && $comment_parent_id) {
+        $commentdata = array(
+            'comment_post_ID' => $evaluation_id, // to which post the comment will show up
+            'comment_author' => $current_user->user_login, //fixed value - can be dynamic 
+            'comment_author_email' => $current_user->user_email, //fixed value - can be dynamic 
+            'comment_author_url' => 'http://testgpdeal.com', //fixed value - can be dynamic 
+            'comment_content' => $comment_content, //fixed value - can be dynamic 
+            'comment_type' => '', //empty for regular comments, 'pingback' for pingbacks, 'trackback' for trackbacks
+            'comment_parent' => $comment_parent_id, //0 if it's not a reply to another comment; if it's a reply, mention the parent comment ID here
+            'user_id' => $current_user->ID, //passing current user ID or any predefined as per the demand
+        );
+
+        //Insert new comment and get the comment ID
+        $comment_id = wp_new_comment($commentdata);
+    }
+    return $comment_id;
+}
+
+//Function for adding a comment to an evaluation 
+function add_evaluation_comment($evaluation_id, $comment_content) {
+    global $current_user;
+    $comment_id = null;
+    if ($evaluation_id) {
+        $commentdata = array(
+            'comment_post_ID' => $evaluation_id, // to which post the comment will show up
+            'comment_author' => $current_user->user_login, //fixed value - can be dynamic 
+            'comment_author_email' => $current_user->user_email, //fixed value - can be dynamic 
+            'comment_author_url' => 'http://testgpdeal.com', //fixed value - can be dynamic 
+            'comment_content' => $comment_content, //fixed value - can be dynamic 
+            'comment_type' => '', //empty for regular comments, 'pingback' for pingbacks, 'trackback' for trackbacks
+            'comment_parent' => 0, //0 if it's not a reply to another comment; if it's a reply, mention the parent comment ID here
+            'user_id' => $current_user->ID, //passing current user ID or any predefined as per the demand
+        );
+
+        //Insert new comment and get the comment ID
+        $comment_id = wp_new_comment($commentdata);
+    }
+    return $comment_id;
+}
+
+//Function for adding an evaluation for Transport offer and comment
+function evaluateTransportOffer($evaluation_data) {
+    global $post;
+    global $current_user;
+    if ($evaluation_data) {
+        $post_args = array(
+            'post_title' => wp_strip_all_tags('evaluation_' . $post->post_title),
+            'post_type' => 'evaluation',
+            'post_author' => get_current_user_id(),
+            'post_status' => 'publish',
+            'meta_input' => array(
+                'transport-offer-ID' => $post->ID,
+                'questions' => array(__("Objet livré", "gpdealdomain"), __("Etat des objets", "gpdealdomain"), __("Délais de livraison", "gpdealdomain"), __("Coût", "gpdealdomain"), __("Transporteur à recommander", "gpdealdomain")),
+                'responses' => $evaluation_data['responses']
+            )
+        );
+        $evaluation_id = wp_insert_post($post_args, true);
+        $comment_content = $evaluation_data['comment_content'];
+        if (!is_wp_error($evaluation_id) && $comment_content && $comment_content != "") {
+
+            $commentdata = array(
+                'comment_post_ID' => $evaluation_id, // to which post the comment will show up
+                'comment_author' => $current_user->user_login, //fixed value - can be dynamic 
+                'comment_author_email' => $current_user->user_email, //fixed value - can be dynamic 
+                'comment_author_url' => 'http://testgpdeal.com', //fixed value - can be dynamic 
+                'comment_content' => $comment_content, //fixed value - can be dynamic 
+                'comment_type' => '', //empty for regular comments, 'pingback' for pingbacks, 'trackback' for trackbacks
+                'comment_parent' => 0, //0 if it's not a reply to another comment; if it's a reply, mention the parent comment ID here
+                'user_id' => $current_user->ID, //passing current user ID or any predefined as per the demand
+            );
+
+            //Insert new comment and get the comment ID
+            $comment_id = wp_new_comment($commentdata);
+        }
+        return $evaluation_id;
+    }
+}
+
 //Fonction for Saving a Transport offer
 function saveTransportOffer($transport_offer_data) {
     if ($transport_offer_data) {
@@ -1381,12 +1609,10 @@ function getPackageStatus($status) {
         case 2:
             return "Transaction en cours";
         case 3:
-            return "Transaction validée";
-        case 4:
             return "Evaluée/cloturée";
-        case 5:
+        case 4:
             return "Expirée";
-        case 6:
+        case 5:
             return "Annulée";
         default :
             return "Recherche transporteur";
@@ -1421,6 +1647,9 @@ function getWPQueryArgsForCarrierSearch($search_data) {
         'post_type' => 'transport-offer',
         "post_status" => 'publish'
     );
+    if (is_user_logged_in()) {
+        $args["author__not_in"] = array(get_current_user_id());
+    }
     if ($search_data) {
         $package_type = $search_data['package_type'];
         $start_city = $search_data['start_city'];
@@ -1542,6 +1771,9 @@ function getWPQueryArgsForUnsatifiedSendPackages($search_data) {
         'post_type' => 'package',
         "post_status" => 'publish'
     );
+    if (is_user_logged_in()) {
+        $args["author__not_in"] = array(get_current_user_id());
+    }
     if ($search_data) {
         $package_type = $search_data['package_type'];
         $start_city = $search_data['start_city'];
@@ -1666,6 +1898,9 @@ function getWPQueryArgsCarrierSearchForWhichCanInterest($search_data, $exclude_i
                 "post_status" => 'publish',
                 "post__not_in" => $exclude_ids
             );
+            if (is_user_logged_in()) {
+                $args["author__not_in"] = array(get_current_user_id());
+            }
             if (!empty($package_type)) {
                 $tax_query[] = array(
                     'taxonomy' => 'type_package',
@@ -1794,6 +2029,9 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($search_data, $e
         "post_status" => 'publish',
         "post__not_in" => $exclude_ids
     );
+    if (is_user_logged_in()) {
+        $args["author__not_in"] = array(get_current_user_id());
+    }
     if ($search_data) {
         $package_type = $search_data['package_type'];
         $start_city = $search_data['start_city'];
@@ -1925,6 +2163,9 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters() {
         'post_type' => 'transport-offer',
         "post_status" => 'publish'
     );
+    if (is_user_logged_in()) {
+        $args["author__not_in"] = array(get_current_user_id());
+    }
     if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['s'])) {
 
         $search_query = removeslashes(esc_attr(trim($_GET['s'])));
@@ -2073,6 +2314,9 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
         'post_type' => 'transport-offer',
         "post_status" => 'publish'
     );
+    if (is_user_logged_in()) {
+        $args["author__not_in"] = array(get_current_user_id());
+    }
     if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['s'])) {
 
         $search_query = removeslashes(esc_attr(trim($_GET['s'])));
