@@ -1188,6 +1188,50 @@ function updateSendPackage($post_ID, $package_data) {
 }
 
 //Function to get and echo all reply of comment recursively
+function getAndEchoAllReplyForCarrier($evaluation_id, $comment_id) {
+    global $current_user;
+    $comments_children_view_content = "";
+    if ($evaluation_id && $comment_id) {
+        $comments_children = get_comments(array('post_id' => $evaluation_id, "parent" => $comment_id, "orderby" => "comment_date", "order" => "asc"));
+        if ($comments_children && !empty($comments_children)) {
+            ob_start();
+            ?>
+            <div class="comments">
+                <?php
+                foreach ($comments_children as $comment):
+                    $comment_user = get_userdata($comment->user_id);
+                    ?>
+                    <div class="comment">
+                        <a class="avatar">
+                            <img src="<?php echo get_template_directory_uri() ?>/assets/images/avatar.png">
+                        </a>
+                        <div class="content">
+                            <a class="author"><?php echo $comment_user->user_login; ?></a>
+                            <div class="metadata">
+                                <div class="date"><?php
+                                    $date = apply_filters('get_comment_time', $comment->comment_date, 'U', false, true, $comment);
+                                    echo "a commenté il y a " . human_time_diff(strtotime($date), current_time('timestamp'));
+                                    ?></div>
+                            </div>
+                            <div class="text">
+                                <p><?php echo $comment->comment_content; ?></p>
+                            </div>
+                        </div>
+                        <?php echo getAndEchoAllReplyForCarrier($evaluation_id, $comment->comment_ID); ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <?php
+            $comments_children_view_content = ob_get_contents();
+            ob_end_clean();
+        }
+    }
+    return $comments_children_view_content;
+}
+
+
+
+//Function to get and echo all reply of comment recursively
 function getAndechoAllReply($evaluation_id, $comment_id, $transport_offer_link) {
     global $current_user;
     $comments_children_view_content = "";
@@ -1262,6 +1306,38 @@ function getAndechoAllReply($evaluation_id, $comment_id, $transport_offer_link) 
     return $comments_children_view_content;
 }
 
+//Function for getting total statistique of evalation of spécific carrier
+function getTotalStatistiticsEvaluationsOfCarrier($carrier_id) {
+    $statistics = array("Objet livré" => array("Oui" => 0, "Non" => 0, "vote_count" => 0), "Etat des objets" => array("Non conforme" => 0, "Conforme" => 0, "vote_count" => 0), "Délais de livraison" => array("Satisfaisant" => 0, "Moyen" => 0, "Non satisfaisant" => 0, "vote_count" => 0), "Coût" => array("Economique" => 0, "Juste" => 0, "Elevé" => 0, "vote_count" => 0), "Transporteur à recommander" => array("Pas du tout" => 0, "Moyennement" => 0, "Tout le temps" => 0, "vote_count" => 0));
+    $evaluations = new WP_Query(array('post_type' => 'evaluation', 'post_per_page' => -1, "post_status" => 'publish', 'orderby' => 'post_date', 'order' => 'DESC', 'meta_query' => array(array('key' => 'carrier-author', 'value' => $carrier_id, 'compare' => '='))));
+    if ($evaluations->have_posts()) {
+        while ($evaluations->have_posts()) {
+            $evaluations->the_post();
+            $questions = get_post_meta(get_the_ID(), 'questions', true);
+            $responses = get_post_meta(get_the_ID(), 'responses', true);
+            if (is_array($questions) && is_array($responses) && count($questions) == 5 && count($responses) == 5){
+                for ($i=0; $i< count($questions); $i++) {
+                    if($responses[$i] && $responses[$i]!=""){
+                        $statistics[$questions[$i]][$responses[$i]]++;
+                        $statistics[$questions[$i]]["vote_count"]++;
+                    }
+                }
+            }
+        }
+    }
+     wp_reset_postdata();
+    foreach ($statistics as $statistic_key => $statistic) {
+        foreach ($statistic as $key => $value) {
+            if($key != "vote_count"){
+                $statistic[$key] = $statistic["vote_count"]!=0 ? $value*100/$statistic["vote_count"]: 0;
+            }            
+        }
+        $statistics[$statistic_key] = $statistic;
+    }
+   return $statistics;
+}
+
+
 //Function for getting total statistique of evalation of spécific transport offer
 function getTotalStatistiticsEvaluation($transport_offer_id) {
     $statistics = array("Objet livré" => array("Oui" => 0, "Non" => 0, "vote_count" => 0), "Etat des objets" => array("Non conforme" => 0, "Conforme" => 0, "vote_count" => 0), "Délais de livraison" => array("Satisfaisant" => 0, "Moyen" => 0, "Non satisfaisant" => 0, "vote_count" => 0), "Coût" => array("Economique" => 0, "Juste" => 0, "Elevé" => 0, "vote_count" => 0), "Transporteur à recommander" => array("Pas du tout" => 0, "Moyennement" => 0, "Tout le temps" => 0, "vote_count" => 0));
@@ -1285,7 +1361,7 @@ function getTotalStatistiticsEvaluation($transport_offer_id) {
     foreach ($statistics as $statistic_key => $statistic) {
         foreach ($statistic as $key => $value) {
             if($key != "vote_count"){
-                $statistic[$key] = $value*100/$statistic["vote_count"];
+                $statistic[$key] = $statistic["vote_count"]!=0 ? $value*100/$statistic["vote_count"]: 0;
             }            
         }
         $statistics[$statistic_key] = $statistic;
@@ -1349,6 +1425,8 @@ function evaluateTransportOffer($evaluation_data) {
             'post_status' => 'publish',
             'meta_input' => array(
                 'transport-offer-ID' => $post->ID,
+                'carrier-author' => get_post_field('post_author', $post->ID),
+                'package-ID' => $evaluation_data['package_id'],
                 'questions' => array(__("Objet livré", "gpdealdomain"), __("Etat des objets", "gpdealdomain"), __("Délais de livraison", "gpdealdomain"), __("Coût", "gpdealdomain"), __("Transporteur à recommander", "gpdealdomain")),
                 'responses' => $evaluation_data['responses']
             )
