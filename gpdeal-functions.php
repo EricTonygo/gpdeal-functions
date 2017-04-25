@@ -491,18 +491,13 @@ function add_my_featured_image_to_home() {
     }
 }
 
-function upload_user_file($file = array(), $parent_post_id = 0) {
-
+function upload_file($file = array(), $parent_post_id = 0) {
     require_once( ABSPATH . 'wp-admin/includes/admin.php' );
-
     $file_return = wp_handle_upload($file, array('test_form' => false));
-
     if (isset($file_return['error']) || isset($file_return['upload_error_handler'])) {
         return false;
     } else {
-
         $filename = $file_return['file'];
-
         $attachment = array(
             'post_mime_type' => $file_return['type'],
             'post_title' => preg_replace('/\.[^.]+$/', '', basename($filename)),
@@ -567,7 +562,7 @@ function register_user() {
                 return wp_send_json_success($json);
             }
         }
-    } elseif ($_POST['g-recaptcha-response-register']) {
+    } elseif (isset($_POST['g-recaptcha-response-register'])) {
 //        if (!verify_use_grecaptcha($_POST['g-recaptcha-response-register'])) {
 //            // What happens when the CAPTCHA was entered incorrectly
 //            $_SESSION['error_message'] = "Nous n'avons pas pu verifier votre code de sécurité. Verifiez le puis essayez à nouveau :".$_POST['g-recaptcha-response-register'];
@@ -589,8 +584,8 @@ function register_user() {
             $test_question_ID = removeslashes(esc_attr(trim($_POST['test_question'])));
             $answer_test_question = removeslashes(esc_attr(trim($_POST['answer_test_question'])));
             $receive_notifications = removeslashes(esc_attr(trim($_POST['receive_notifications'])));
-
-
+            $profile_picture_id = removeslashes(esc_attr(trim($_POST['profile_picture_id'])));
+            $identity_file_id = removeslashes(esc_attr(trim($_POST['identity_file_id'])));
 
             $new_user_data = array(
                 'user_login' => $user_login,
@@ -615,6 +610,8 @@ function register_user() {
                 update_user_meta($user_id, 'test-question-ID', $test_question_ID);
                 update_user_meta($user_id, 'answer-test-question', $answer_test_question);
                 update_user_meta($user_id, 'identity-status', 0);
+                update_user_meta($user_id, 'profile-picture-ID', $profile_picture_id);
+                update_user_meta($user_id, 'identity-file-ID', $identity_file_id);
                 if ($receive_notifications && $receive_notifications == 'on') {
                     update_user_meta($user_id, 'receive-notifications', 'yes');
                 } else {
@@ -650,7 +647,8 @@ function register_user() {
             $test_question_ID_pro = removeslashes(esc_attr(trim($_POST['test_question_pro'])));
             $answer_test_question_pro = removeslashes(esc_attr(trim($_POST['answer_test_question_pro'])));
             $receive_notifications_pro = removeslashes(esc_attr(trim($_POST['receive_notifications'])));
-
+            $company_logo_id = removeslashes(esc_attr(trim($_POST['company_logo_id'])));
+            $identity_file_pro_id = removeslashes(esc_attr(trim($_POST['identity_file_pro_id'])));
 
             $new_user_data = array(
                 'user_login' => $user_login_pro,
@@ -664,20 +662,20 @@ function register_user() {
             $user_id = wp_insert_user($new_user_data);
 
             if (!is_wp_error($user_id)) {
-                if (!empty($_FILES['company_logo'])) {
-                    $logo_pro = $_FILES['company_logo'];
-                    $attachment_id = upload_user_file($logo_pro);
-                    update_user_meta($user_id, 'company_logo_ID', $attachment_id);
-                }
-                if (!empty($_FILES['company_attachments'])) {
-                    $company_attachements = $_FILES['company_attachments'];
-                    $company_attachements_ids = array();
-                    foreach ($company_attachements as $company_attachement) {
-                        $attachment_id = upload_user_file($company_attachement);
-                        $company_attachements_ids[] = $attachment_id;
-                    }
-                    update_user_meta($user_id, 'company_attachements_IDs', $company_attachements_ids);
-                }
+//                if (!empty($_FILES['company_logo'])) {
+//                    $logo_pro = $_FILES['company_logo'];
+//                    $attachment_id = upload_user_file($logo_pro);
+//                    update_user_meta($user_id, 'company_logo_ID', $attachment_id);
+//                }
+//                if (!empty($_FILES['company_attachments'])) {
+//                    $company_attachements = $_FILES['company_attachments'];
+//                    $company_attachements_ids = array();
+//                    foreach ($company_attachements as $company_attachement) {
+//                        $attachment_id = upload_user_file($company_attachement);
+//                        $company_attachements_ids[] = $attachment_id;
+//                    }
+//                    update_user_meta($user_id, 'company_attachements_IDs', $company_attachements_ids);
+//                }
                 update_user_meta($user_id, 'plain-text-password', $user_pass_pro);
                 update_user_meta($user_id, 'company-name', $company_name_pro);
                 update_user_meta($user_id, 'company-legal-form', $company_legal_form_pro);
@@ -705,6 +703,8 @@ function register_user() {
                 update_user_meta($user_id, 'test-question-ID', $test_question_ID_pro);
                 update_user_meta($user_id, 'answer-test-question', $answer_test_question_pro);
                 update_user_meta($user_id, 'identity-status', 0);
+                update_user_meta($user_id, 'company-logo-ID', $company_logo_id);
+                update_user_meta($user_id, 'identity-file-ID', $identity_file_pro_id);
                 if ($receive_notifications_pro && $receive_notifications_pro == 'on') {
                     update_user_meta($user_id, 'receive-notifications', 'yes');
                 } else {
@@ -769,7 +769,8 @@ function update_user($user_id) {
             $test_question_ID = removeslashes(esc_attr(trim($_POST['test_question'])));
             $answer_test_question = removeslashes(esc_attr(trim($_POST['answer_test_question'])));
             $receive_notifications = removeslashes(esc_attr(trim($_POST['receive_notifications'])));
-
+            $profile_picture_id = removeslashes(esc_attr(trim($_POST['profile_picture_id'])));
+            $identity_file_id = removeslashes(esc_attr(trim($_POST['identity_file_id'])));
 
             $update_user_data = array(
                 'ID' => $user_id,
@@ -794,6 +795,8 @@ function update_user($user_id) {
                 update_user_meta($user_id, 'mobile-phone-number', $mobile_phone_number);
                 update_user_meta($user_id, 'test-question-ID', $test_question_ID);
                 update_user_meta($user_id, 'answer-test-question', $answer_test_question);
+                update_user_meta($user_id, 'profile-picture-ID', $profile_picture_id);
+                update_user_meta($user_id, 'identity-file-ID', $identity_file_id);
                 if ($receive_notifications && $receive_notifications == 'on') {
                     update_user_meta($user_id, 'receive-notifications', 'yes');
                 } else {
@@ -829,6 +832,8 @@ function update_user($user_id) {
             $test_question_ID_pro = removeslashes(esc_attr(trim($_POST['test_question_pro'])));
             $answer_test_question_pro = removeslashes(esc_attr(trim($_POST['answer_test_question_pro'])));
             $receive_notifications_pro = removeslashes(esc_attr(trim($_POST['receive_notifications'])));
+            $company_logo_id = removeslashes(esc_attr(trim($_POST['company_logo_id'])));
+            $identity_file_pro_id = removeslashes(esc_attr(trim($_POST['identity_file_pro_id'])));
 
             $update_user_data = array(
                 'ID' => $user_id,
@@ -882,6 +887,8 @@ function update_user($user_id) {
                 update_user_meta($user_id, 'email-representative2', $email_representative2_pro);
                 update_user_meta($user_id, 'test-question-ID', $test_question_ID_pro);
                 update_user_meta($user_id, 'answer-test-question', $answer_test_question_pro);
+                update_user_meta($user_id, 'company-logo-ID', $company_logo_id);
+                update_user_meta($user_id, 'identity-file-ID', $identity_file_pro_id);
                 if ($receive_notifications_pro && $receive_notifications_pro == 'on') {
                     update_user_meta($user_id, 'receive-notifications', 'yes');
                 } else {
@@ -931,19 +938,51 @@ function get_password() {
     } else {
         $user_email = removeslashes(esc_attr(trim($_POST['email'])));
         $unique_user_email = get_user_by('email', $user_email);
-        $plain_text_password = get_user_meta($user_id, 'plain-text-password', true);
-        $headers[] = 'Content-Type: text/html; charset=UTF-8';
+        $plain_text_password = get_user_meta($unique_user_email->ID, 'plain-text-password', true);
+        //$headers[] = 'Content-Type: text/html; charset=UTF-8';
+        $headers[] = 'MIME-Version: 1.0';
+        $headers[] = 'Content-Type: text/html; charset=ISO-8859-1';
         $headers[] = 'From: GPDEAL INFOS <infos@gpdeal.com>';
-        //$headers[] = 'Reply-To:' . Input::get('nom') . ' <' . $data['adress'] . '>';
         //$headers[] = 'Bcc:<apatchong@gmail.com>';
         $headers[] = 'Bcc:<erictonyelissouck@yahoo.fr>';
 
-        $to = $user_email;
 
-        $subject = "Mot de passe du compte";
+        $subject = "Communication du mot de passe";
 
-        $body = $plain_text_password;
-        wp_mail($to, $subject, $body, $headers);
+        $body = __("Le mot de passe de votre compte est", "gpdealdomain").": ".$plain_text_password;
+        if (wp_mail($user_email, $subject, $body, $headers)) {
+            $_SESSION['success_send_password'] = true;
+        } else {
+            $_SESSION['error_send_password'] = true;
+        }
+    }
+}
+
+//Function for getting forgot password of user
+function gp_reset_password() {
+    $current_user = wp_get_current_user();
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+        $old_password = esc_attr($_POST['old_password']);
+        if ($current_user && wp_check_password($old_password, $current_user->data->user_pass, $current_user->ID)) {
+            $json = array("message" => "Correct informations");
+            return wp_send_json_success($json);
+        } else {
+            $json = array("message" => "Mot de passe incorrect");
+            return wp_send_json_error($json);
+        }
+    } else {
+        $old_password = esc_attr($_POST['old_password']);
+        $new_password = esc_attr($_POST['new_password']);
+        if ($current_user && wp_check_password($old_password, $current_user->data->user_pass, $current_user->ID)) {
+            wp_set_password($new_password, $current_user->ID);
+            update_user_meta($current_user->ID, 'plain-text-password', $new_password);
+            wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain') . '/' . __('profil', 'gpdealdomain'))));
+            exit;
+        } else {
+            $_SESSION['reset_password_error'] = __("Impossible de modifier le mot de passe");
+            wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain') . '/' . __('modifier-le-mot-de-passe', 'gpdealdomain'))));
+            exit;
+        }
     }
 }
 
@@ -1050,10 +1089,11 @@ function sendPackage($package_data) {
         $start_date = $package_data['start_date'];
         $destination_city = $package_data['destination_city'];
         $destination_date = $package_data['destination_date'];
+        $package_picture_id = $package_data['package_picture_id'];
 
         $start_country = "";
         $start_state = "";
-        //array containing city name, region name, and country name of start
+//array containing city name, region name, and country name of start
         $start_localities = explode(", ", $start_city);
         if (count($start_localities) == 2) {
             $start_city = $start_localities[0];
@@ -1068,7 +1108,7 @@ function sendPackage($package_data) {
 
         $destination_country = "";
         $destination_state = "";
-        //array containing city name, region name, and country name of destination
+//array containing city name, region name, and country name of destination
         $destination_localities = explode(", ", $destination_city);
         if (count($destination_localities) == 2) {
             $destination_city = $destination_localities[0];
@@ -1081,8 +1121,7 @@ function sendPackage($package_data) {
         }
 
         $date = new DateTime('now');
-        $post_title = "P-" . $date->format('Y-m-d H:i:s') . '-' . $date->getTimestamp();
-
+        $post_title = str_replace(":", "", str_replace("-", "", str_replace(" ", "", "P" . $date->format('Y-m-d H:i:s') . $date->getTimestamp())));
         $post_args = array(
             'post_title' => wp_strip_all_tags($post_title),
             'post_type' => 'package',
@@ -1104,6 +1143,7 @@ function sendPackage($package_data) {
                 'destination-state-package' => $destination_state,
                 'destination-city-package' => $destination_city,
                 'arrival-date-package' => $destination_date,
+                'package-picture-ID' => $package_picture_id,
                 'carrier-ID' => -1,
                 'package-status' => 1
             )
@@ -1126,12 +1166,13 @@ function updateSendPackage($post_ID, $package_data) {
         $start_date = $package_data['start_date'];
         $destination_city = $package_data['destination_city'];
         $destination_date = $package_data['destination_date'];
+        $package_picture_id = $package_data['package_picture_id'];
 
-        //$date = new DateTime('now');
-        //$post_title = "P-".$date->format('Y-m-d H:i:s').'-'.$date->getTimestamp();
+//$date = new DateTime('now');
+//$post_title = "P-".$date->format('Y-m-d H:i:s').'-'.$date->getTimestamp();
         $start_country = "";
         $start_state = "";
-        //array containing city name, region name, and country name of start
+//array containing city name, region name, and country name of start
         $start_localities = explode(", ", $start_city);
         if (count($start_localities) == 2) {
             $start_city = $start_localities[0];
@@ -1146,7 +1187,7 @@ function updateSendPackage($post_ID, $package_data) {
 
         $destination_country = "";
         $destination_state = "";
-        //array containing city name, region name, and country name of destination
+//array containing city name, region name, and country name of destination
         $destination_localities = explode(", ", $destination_city);
         if (count($destination_localities) == 2) {
             $destination_city = $destination_localities[0];
@@ -1180,6 +1221,7 @@ function updateSendPackage($post_ID, $package_data) {
                 'destination-state-package' => $destination_state,
                 'destination-city-package' => $destination_city,
                 'arrival-date-package' => $destination_date,
+                'package-picture-ID' => $package_picture_id,
             )
         );
         $package_id = wp_update_post($post_args, true);
@@ -1200,10 +1242,11 @@ function getAndEchoAllReplyForCarrier($evaluation_id, $comment_id) {
                 <?php
                 foreach ($comments_children as $comment):
                     $comment_user = get_userdata($comment->user_id);
+                    $comment_profile_picture_id = get_user_meta($comment->user_id, 'profile-picture-ID', true) ? get_user_meta($comment->user_id, 'profile-picture-ID', true) : get_user_meta($comment->user_id, 'company-logo-ID', true);
                     ?>
                     <div class="comment">
                         <a class="avatar">
-                            <img src="<?php echo get_template_directory_uri() ?>/assets/images/avatar.png">
+                            <img  class="ui avatar image" <?php if ($comment_profile_picture_id): ?> src= "<?php echo wp_get_attachment_url($comment_profile_picture_id); ?>" <?php else: ?> src="<?php echo get_template_directory_uri() ?>/assets/images/avatar.png"<?php endif ?>>
                         </a>
                         <div class="content">
                             <a class="author"><?php echo $comment_user->user_login; ?></a>
@@ -1228,8 +1271,6 @@ function getAndEchoAllReplyForCarrier($evaluation_id, $comment_id) {
     }
     return $comments_children_view_content;
 }
-
-
 
 //Function to get and echo all reply of comment recursively
 function getAndechoAllReply($evaluation_id, $comment_id, $transport_offer_link) {
@@ -1308,65 +1349,71 @@ function getAndechoAllReply($evaluation_id, $comment_id, $transport_offer_link) 
 
 //Function for getting total statistique of evalation of spécific carrier
 function getTotalStatistiticsEvaluationsOfCarrier($carrier_id) {
-    $statistics = array("Objet livré" => array("Oui" => 0, "Non" => 0, "vote_count" => 0), "Etat des objets" => array("Non conforme" => 0, "Conforme" => 0, "vote_count" => 0), "Délais de livraison" => array("Satisfaisant" => 0, "Moyen" => 0, "Non satisfaisant" => 0, "vote_count" => 0), "Coût" => array("Economique" => 0, "Juste" => 0, "Elevé" => 0, "vote_count" => 0), "Transporteur à recommander" => array("Pas du tout" => 0, "Moyennement" => 0, "Tout le temps" => 0, "vote_count" => 0));
+    global $post;
+    $statistics = array("Evaluation globale" => array("0" => 0, "1" => 0, "2" => 0, "3" => 0, "4" => 0, "5" => 0, 'vote_count' => 0, "weighted_average" => 0));
     $evaluations = new WP_Query(array('post_type' => 'evaluation', 'post_per_page' => -1, "post_status" => 'publish', 'orderby' => 'post_date', 'order' => 'DESC', 'meta_query' => array(array('key' => 'carrier-author', 'value' => $carrier_id, 'compare' => '='))));
     if ($evaluations->have_posts()) {
         while ($evaluations->have_posts()) {
             $evaluations->the_post();
             $questions = get_post_meta(get_the_ID(), 'questions', true);
             $responses = get_post_meta(get_the_ID(), 'responses', true);
-            if (is_array($questions) && is_array($responses) && count($questions) == 5 && count($responses) == 5){
-                for ($i=0; $i< count($questions); $i++) {
-                    if($responses[$i] && $responses[$i]!=""){
-                        $statistics[$questions[$i]][$responses[$i]]++;
-                        $statistics[$questions[$i]]["vote_count"]++;
-                    }
+            if (is_array($questions) && is_array($responses) && count($questions) == 5 && count($responses) == 5) {
+                if (intval($responses[4]) >= 0) {
+                    $statistics[$questions[4]][$responses[4]] ++;
+                    $statistics[$questions[4]]["vote_count"] ++;
                 }
             }
         }
+        wp_reset_postdata();
     }
-     wp_reset_postdata();
+
     foreach ($statistics as $statistic_key => $statistic) {
         foreach ($statistic as $key => $value) {
-            if($key != "vote_count"){
-                $statistic[$key] = $statistic["vote_count"]!=0 ? $value*100/$statistic["vote_count"]: 0;
-            }            
+            if ($key != "vote_count" && $key != "weighted_average") {
+                $statistic["weighted_average"] += (intval($key) * $value);
+            }
         }
+        $statistic["weighted_average"] = $statistic["vote_count"] != 0 ? round($statistic["weighted_average"] / $statistic["vote_count"]) : 0;
         $statistics[$statistic_key] = $statistic;
     }
-   return $statistics;
+    return $statistics;
 }
 
+//Function for getting all evalations of spécific carrier
+function getEvaluationsOfCarrier($carrier_id) {
+    return $evaluations = new WP_Query(array('post_type' => 'evaluation', 'post_per_page' => -1, "post_status" => 'publish', 'orderby' => 'post_date', 'order' => 'DESC', 'meta_query' => array(array('key' => 'carrier-author', 'value' => $carrier_id, 'compare' => '='))));
+}
 
 //Function for getting total statistique of evalation of spécific transport offer
 function getTotalStatistiticsEvaluation($transport_offer_id) {
-    $statistics = array("Objet livré" => array("Oui" => 0, "Non" => 0, "vote_count" => 0), "Etat des objets" => array("Non conforme" => 0, "Conforme" => 0, "vote_count" => 0), "Délais de livraison" => array("Satisfaisant" => 0, "Moyen" => 0, "Non satisfaisant" => 0, "vote_count" => 0), "Coût" => array("Economique" => 0, "Juste" => 0, "Elevé" => 0, "vote_count" => 0), "Transporteur à recommander" => array("Pas du tout" => 0, "Moyennement" => 0, "Tout le temps" => 0, "vote_count" => 0));
+    global $post;
+    $statistics = array("Evaluation globale" => array("0" => 0, "1" => 0, "2" => 0, "3" => 0, "4" => 0, "5" => 0, 'vote_count' => 0, "weighted_average" => 0));
     $evaluations = new WP_Query(array('post_type' => 'evaluation', 'post_per_page' => -1, "post_status" => 'publish', 'orderby' => 'post_date', 'order' => 'DESC', 'meta_query' => array(array('key' => 'transport-offer-ID', 'value' => $transport_offer_id, 'compare' => '='))));
     if ($evaluations->have_posts()) {
         while ($evaluations->have_posts()) {
             $evaluations->the_post();
             $questions = get_post_meta(get_the_ID(), 'questions', true);
             $responses = get_post_meta(get_the_ID(), 'responses', true);
-            if (is_array($questions) && is_array($responses) && count($questions) == 5 && count($responses) == 5){
-                for ($i=0; $i< count($questions); $i++) {
-                    if($responses[$i] && $responses[$i]!=""){
-                        $statistics[$questions[$i]][$responses[$i]]++;
-                        $statistics[$questions[$i]]["vote_count"]++;
-                    }
+            if (is_array($questions) && is_array($responses) && count($questions) == 5 && count($responses) == 5) {
+                if (intval($responses[4]) >= 0) {
+                    $statistics[$questions[4]][$responses[4]] ++;
+                    $statistics[$questions[4]]["vote_count"] ++;
                 }
             }
         }
+        wp_reset_postdata();
     }
-     wp_reset_postdata();
+
     foreach ($statistics as $statistic_key => $statistic) {
         foreach ($statistic as $key => $value) {
-            if($key != "vote_count"){
-                $statistic[$key] = $statistic["vote_count"]!=0 ? $value*100/$statistic["vote_count"]: 0;
-            }            
+            if ($key != "vote_count" && $key != "weighted_average") {
+                $statistic["weighted_average"] += (intval($key) * $value);
+            }
         }
+        $statistic["weighted_average"] = $statistic["vote_count"] != 0 ? round($statistic["weighted_average"] / $statistic["vote_count"]) : 0;
         $statistics[$statistic_key] = $statistic;
     }
-   return $statistics;
+    return $statistics;
 }
 
 //Function for adding a comment to an evaluation 
@@ -1385,7 +1432,7 @@ function add_comment_reply($evaluation_id, $comment_parent_id, $comment_content)
             'user_id' => $current_user->ID, //passing current user ID or any predefined as per the demand
         );
 
-        //Insert new comment and get the comment ID
+//Insert new comment and get the comment ID
         $comment_id = wp_new_comment($commentdata);
     }
     return $comment_id;
@@ -1407,7 +1454,7 @@ function add_evaluation_comment($evaluation_id, $comment_content) {
             'user_id' => $current_user->ID, //passing current user ID or any predefined as per the demand
         );
 
-        //Insert new comment and get the comment ID
+//Insert new comment and get the comment ID
         $comment_id = wp_new_comment($commentdata);
     }
     return $comment_id;
@@ -1427,7 +1474,7 @@ function evaluateTransportOffer($evaluation_data) {
                 'transport-offer-ID' => $post->ID,
                 'carrier-author' => get_post_field('post_author', $post->ID),
                 'package-ID' => $evaluation_data['package_id'],
-                'questions' => array(__("Objet livré", "gpdealdomain"), __("Etat des objets", "gpdealdomain"), __("Délais de livraison", "gpdealdomain"), __("Coût", "gpdealdomain"), __("Transporteur à recommander", "gpdealdomain")),
+                'questions' => array(__("Objet livré", "gpdealdomain"), __("Etat des objets", "gpdealdomain"), __("Délais de livraison", "gpdealdomain"), __("Coût", "gpdealdomain"), __("Evaluation globale", "gpdealdomain")),
                 'responses' => $evaluation_data['responses']
             )
         );
@@ -1467,11 +1514,11 @@ function saveTransportOffer($transport_offer_data) {
         $destination_date = $transport_offer_data['destination_date'];
 
         $date = new DateTime('now');
-        $post_title = "TRFR-" . $date->format('Y-m-d H:i:s') . '-' . $date->getTimestamp();
+        $post_title = str_replace(":", "", str_replace("-", "", str_replace(" ", "", "TRFR" . $date->format('Y-m-d H:i:s') . $date->getTimestamp())));
 
         $start_country = "";
         $start_state = "";
-        //array containing city name, region name, and country name of start
+//array containing city name, region name, and country name of start
         $start_localities = explode(", ", $start_city);
         if (count($start_localities) == 2) {
             $start_city = $start_localities[0];
@@ -1486,7 +1533,7 @@ function saveTransportOffer($transport_offer_data) {
 
         $destination_country = "";
         $destination_state = "";
-        //array containing city name, region name, and country name of destination
+//array containing city name, region name, and country name of destination
         $destination_localities = explode(", ", $destination_city);
         if (count($destination_localities) == 2) {
             $destination_city = $destination_localities[0];
@@ -1540,12 +1587,12 @@ function updateTransportOffer($post_ID, $transport_offer_data) {
         $destination_city = $transport_offer_data['destination_city'];
         $destination_date = $transport_offer_data['destination_date'];
 
-        //$date = new DateTime('now');
-        //$post_title = "TRFR".$date->format('Y-m-d H:i:s').$date->getTimestamp();
+//$date = new DateTime('now');
+//$post_title = "TRFR".$date->format('Y-m-d H:i:s').$date->getTimestamp();
 
         $start_country = "";
         $start_state = "";
-        //array containing city name, region name, and country name of start
+//array containing city name, region name, and country name of start
         $start_localities = explode(", ", $start_city);
         if (count($start_localities) == 2) {
             $start_city = $start_localities[0];
@@ -1560,7 +1607,7 @@ function updateTransportOffer($post_ID, $transport_offer_data) {
 
         $destination_country = "";
         $destination_state = "";
-        //array containing city name, region name, and country name of destination
+//array containing city name, region name, and country name of destination
         $destination_localities = explode(", ", $destination_city);
         if (count($destination_localities) == 2) {
             $destination_city = $destination_localities[0];
@@ -1661,7 +1708,7 @@ function contactus() {
     }
     $headers[] = 'Content-Type: text/html; charset=UTF-8';
     $headers[] = 'From: ' . $sender_name . ' <' . $email . '>';
-    //$headers[] = 'Reply-To:' . Input::get('nom') . ' <' . $data['adress'] . '>';
+//$headers[] = 'Reply-To:' . Input::get('nom') . ' <' . $data['adress'] . '>';
     $headers[] = 'Bcc:<erictonyelissouck@yahoo.fr>';
 
     $to = get_bloginfo('admin_email');
@@ -1675,6 +1722,19 @@ function contactus() {
     } else {
         $json = array("message" => __("Erreur lors de l'envoi. Verifier les informations puis réessayer à nouveau", 'si-ogivedomain'));
         return wp_send_json_error($json);
+    }
+}
+
+function getUserIdentityStatus($status) {
+    switch ($status) {
+        case 0:
+            return "Verification de l'identité encours";
+        case 1:
+            return "Non identifié";
+        case 2:
+            return "Identifié";
+        default :
+            return "Non identifié";
     }
 }
 
@@ -2235,7 +2295,7 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($search_data, $e
 }
 
 // This Function return arguments of a query for main searching transport offers with start parameters
-function getWPQueryArgsForMainCarrierSearchWithStartParameters() {
+function getWPQueryArgsForMainCarrierSearchWithStartParameters($search_query = null) {
     $today = date('Y-m-d H:i:s', strtotime('today'));
     $args = array(
         'post_type' => 'transport-offer',
@@ -2244,33 +2304,67 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters() {
     if (is_user_logged_in()) {
         $args["author__not_in"] = array(get_current_user_id());
     }
-    if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['s'])) {
 
-        $search_query = removeslashes(esc_attr(trim($_GET['s'])));
-        if ($search_query) {
-            $start_country = "";
-            $start_state = "";
-            $start_city = $search_query;
-            //array containing city name, region name, and country name of start
-            $start_localities = explode(", ", $start_city);
-            if (count($start_localities) == 2) {
-                $start_city = $start_localities[0];
-                $start_country = $start_localities[1];
-                $start_state = getRegionByCityAndCountry($start_city, $start_country);
-            } elseif (count($start_localities) == 3) {
-                $start_city = $start_localities[0];
-                $start_state = $start_localities[1];
-                $start_country = $start_localities[2];
-            }
 
-            if ($start_state == "" && $start_country == "") {
-                $meta_query = array(
-                    'relation' => 'AND',
+    if ($search_query) {
+        $start_country = "";
+        $start_state = "";
+        $start_city = $search_query;
+//array containing city name, region name, and country name of start
+        $start_localities = explode(", ", $start_city);
+        if (count($start_localities) == 2) {
+            $start_city = $start_localities[0];
+            $start_country = $start_localities[1];
+            $start_state = getRegionByCityAndCountry($start_city, $start_country);
+        } elseif (count($start_localities) == 3) {
+            $start_city = $start_localities[0];
+            $start_state = $start_localities[1];
+            $start_country = $start_localities[2];
+        }
+
+        if ($start_state == "" && $start_country == "") {
+            $meta_query = array(
+                'relation' => 'AND',
 //                    array(
 //                        'key' => 'transport-status',
 //                        'value' => 3,
 //                        'compare' => '!=',
 //                    ),
+                array(
+                    'key' => 'deadline-of-proposition-transport-offer',
+                    'value' => $today,
+                    'compare' => '>=',
+                    'type' => 'DATE'
+                ),
+                array(
+                    'relation' => 'OR',
+                    array(
+                        'key' => 'departure-country-transport-offer',
+                        'value' => $start_city,
+                        'compare' => 'LIKE',
+                    ),
+                    array(
+                        'key' => 'departure-state-transport-offer',
+                        'value' => $start_city,
+                        'compare' => 'LIKE',
+                    ),
+                    array(
+                        'key' => 'departure-city-transport-offer',
+                        'value' => $start_city,
+                        'compare' => 'LIKE',
+                    )
+                )
+            );
+        } elseif ($start_state == "" && $start_country != "") {
+            $meta_query = array(
+                'relation' => 'OR',
+                array(
+                    'relation' => 'AND',
+//                        array(
+//                            'key' => 'transport-status',
+//                            'value' => 3,
+//                            'compare' => '!=',
+//                        ),
                     array(
                         'key' => 'deadline-of-proposition-transport-offer',
                         'value' => $today,
@@ -2278,84 +2372,23 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters() {
                         'type' => 'DATE'
                     ),
                     array(
-                        'relation' => 'OR',
-                        array(
-                            'key' => 'departure-country-transport-offer',
-                            'value' => $start_city,
-                            'compare' => 'LIKE',
-                        ),
-                        array(
-                            'key' => 'departure-state-transport-offer',
-                            'value' => $start_city,
-                            'compare' => 'LIKE',
-                        ),
-                        array(
-                            'key' => 'departure-city-transport-offer',
-                            'value' => $start_city,
-                            'compare' => 'LIKE',
-                        )
-                    )
-                );
-            } elseif ($start_state == "" && $start_country != "") {
-                $meta_query = array(
-                    'relation' => 'OR',
-                    array(
-                        'relation' => 'AND',
-//                        array(
-//                            'key' => 'transport-status',
-//                            'value' => 3,
-//                            'compare' => '!=',
-//                        ),
-                        array(
-                            'key' => 'deadline-of-proposition-transport-offer',
-                            'value' => $today,
-                            'compare' => '>=',
-                            'type' => 'DATE'
-                        ),
-                        array(
-                            'key' => 'departure-state-transport-offer',
-                            'value' => $start_country,
-                            'compare' => 'LIKE',
-                        ),
-                        array(
-                            'key' => 'departure-city-transport-offer',
-                            'value' => $start_city,
-                            'compare' => 'LIKE',
-                        )
+                        'key' => 'departure-state-transport-offer',
+                        'value' => $start_country,
+                        'compare' => 'LIKE',
                     ),
                     array(
-                        'relation' => 'AND',
+                        'key' => 'departure-city-transport-offer',
+                        'value' => $start_city,
+                        'compare' => 'LIKE',
+                    )
+                ),
+                array(
+                    'relation' => 'AND',
 //                        array(
 //                            'key' => 'transport-status',
 //                            'value' => 3,
 //                            'compare' => '!=',
 //                        ),
-                        array(
-                            'key' => 'deadline-of-proposition-transport-offer',
-                            'value' => $today,
-                            'compare' => '>=',
-                            'type' => 'DATE'
-                        ),
-                        array(
-                            'key' => 'departure-country-transport-offer',
-                            'value' => $start_country,
-                            'compare' => 'LIKE',
-                        ),
-                        array(
-                            'key' => 'departure-city-transport-offer',
-                            'value' => $start_city,
-                            'compare' => 'LIKE',
-                        )
-                    )
-                );
-            } else {
-                $meta_query = array(
-                    'relation' => 'AND',
-//                    array(
-//                        'key' => 'transport-status',
-//                        'value' => 3,
-//                        'compare' => '!=',
-//                    ),
                     array(
                         'key' => 'deadline-of-proposition-transport-offer',
                         'value' => $today,
@@ -2368,25 +2401,51 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters() {
                         'compare' => 'LIKE',
                     ),
                     array(
-                        'key' => 'departure-state-transport-offer',
-                        'value' => $start_state,
-                        'compare' => 'LIKE',
-                    ),
-                    array(
                         'key' => 'departure-city-transport-offer',
                         'value' => $start_city,
                         'compare' => 'LIKE',
                     )
-                );
-            }
-            $args['meta_query'] = $meta_query;
+                )
+            );
+        } else {
+            $meta_query = array(
+                'relation' => 'AND',
+//                    array(
+//                        'key' => 'transport-status',
+//                        'value' => 3,
+//                        'compare' => '!=',
+//                    ),
+                array(
+                    'key' => 'deadline-of-proposition-transport-offer',
+                    'value' => $today,
+                    'compare' => '>=',
+                    'type' => 'DATE'
+                ),
+                array(
+                    'key' => 'departure-country-transport-offer',
+                    'value' => $start_country,
+                    'compare' => 'LIKE',
+                ),
+                array(
+                    'key' => 'departure-state-transport-offer',
+                    'value' => $start_state,
+                    'compare' => 'LIKE',
+                ),
+                array(
+                    'key' => 'departure-city-transport-offer',
+                    'value' => $start_city,
+                    'compare' => 'LIKE',
+                )
+            );
         }
+        $args['meta_query'] = $meta_query;
     }
+
     return $args;
 }
 
 // This Function return arguments of a query for main searching transport offers with destination parameters
-function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
+function getWPQueryArgsForMainCarrierSearchWithDestinationParameters($search_query = null) {
     $today = date('Y-m-d H:i:s', strtotime('today'));
     $args = array(
         'post_type' => 'transport-offer',
@@ -2395,119 +2454,66 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
     if (is_user_logged_in()) {
         $args["author__not_in"] = array(get_current_user_id());
     }
-    if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'GET' && isset($_GET['s'])) {
-
-        $search_query = removeslashes(esc_attr(trim($_GET['s'])));
-        if ($search_query) {
-            $destination_country = "";
-            $destination_state = "";
-            $destination_city = $search_query;
-            //array containing city name, region name, and country name of destination
-            $destination_localities = explode(", ", $destination_city);
-            if (count($destination_localities) == 2) {
-                $destination_city = $destination_localities[0];
-                $destination_country = $destination_localities[1];
-                $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
-            } elseif (count($destination_localities) == 3) {
-                $destination_city = $destination_localities[0];
-                $destination_state = $destination_localities[1];
-                $destination_country = $destination_localities[2];
-            }
+    if ($search_query) {
+        $destination_country = "";
+        $destination_state = "";
+        $destination_city = $search_query;
+//array containing city name, region name, and country name of destination
+        $destination_localities = explode(", ", $destination_city);
+        if (count($destination_localities) == 2) {
+            $destination_city = $destination_localities[0];
+            $destination_country = $destination_localities[1];
+            $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
+        } elseif (count($destination_localities) == 3) {
+            $destination_city = $destination_localities[0];
+            $destination_state = $destination_localities[1];
+            $destination_country = $destination_localities[2];
+        }
 
 
-            if ($destination_state == "" && $destination_country == "") {
-                $meta_query = array(
-                    'relation' => 'AND',
+        if ($destination_state == "" && $destination_country == "") {
+            $meta_query = array(
+                'relation' => 'AND',
 //                    array(
 //                        'key' => 'transport-status',
 //                        'value' => 3,
 //                        'compare' => '!=',
 //                    ),
-                    array(
-                        'key' => 'deadline-of-proposition-transport-offer',
-                        'value' => $today,
-                        'compare' => '>=',
-                        'type' => 'DATE'
-                    ),
-                    array(
-                        'relation' => 'OR',
-                        array(
-                            'key' => 'destination-country-transport-offer',
-                            'value' => $destination_city,
-                            'compare' => 'LIKE',
-                        ),
-                        array(
-                            'key' => 'destination-state-transport-offer',
-                            'value' => $destination_city,
-                            'compare' => 'LIKE',
-                        ),
-                        array(
-                            'key' => 'destination-city-transport-offer',
-                            'value' => $destination_city,
-                            'compare' => 'LIKE',
-                        )
-                    )
-                );
-            } elseif ($destination_state == "" && $destination_country != "") {
-                $meta_query = array(
+                array(
+                    'key' => 'deadline-of-proposition-transport-offer',
+                    'value' => $today,
+                    'compare' => '>=',
+                    'type' => 'DATE'
+                ),
+                array(
                     'relation' => 'OR',
                     array(
-                        'relation' => 'AND',
-//                        array(
-//                            'key' => 'transport-status',
-//                            'value' => 3,
-//                            'compare' => '!=',
-//                        ),
-                        array(
-                            'key' => 'deadline-of-proposition-transport-offer',
-                            'value' => $today,
-                            'compare' => '>=',
-                            'type' => 'DATE'
-                        ),
-                        array(
-                            'key' => 'destination-country-transport-offer',
-                            'value' => $destination_country,
-                            'compare' => 'LIKE',
-                        ),
-                        array(
-                            'key' => 'destination-city-transport-offer',
-                            'value' => $destination_city,
-                            'compare' => 'LIKE',
-                        )
+                        'key' => 'destination-country-transport-offer',
+                        'value' => $destination_city,
+                        'compare' => 'LIKE',
                     ),
                     array(
-                        'relation' => 'AND',
+                        'key' => 'destination-state-transport-offer',
+                        'value' => $destination_city,
+                        'compare' => 'LIKE',
+                    ),
+                    array(
+                        'key' => 'destination-city-transport-offer',
+                        'value' => $destination_city,
+                        'compare' => 'LIKE',
+                    )
+                )
+            );
+        } elseif ($destination_state == "" && $destination_country != "") {
+            $meta_query = array(
+                'relation' => 'OR',
+                array(
+                    'relation' => 'AND',
 //                        array(
 //                            'key' => 'transport-status',
 //                            'value' => 3,
 //                            'compare' => '!=',
 //                        ),
-                        array(
-                            'key' => 'deadline-of-proposition-transport-offer',
-                            'value' => $today,
-                            'compare' => '>=',
-                            'type' => 'DATE'
-                        ),
-                        array(
-                            'key' => 'destination-state-transport-offer',
-                            'value' => $destination_country,
-                            'compare' => 'LIKE',
-                        ),
-                        array(
-                            'key' => 'destination-city-transport-offer',
-                            'value' => $destination_city,
-                            'compare' => 'LIKE',
-                        )
-                    )
-                );
-            } else {
-                $meta_query = array(
-                    'relation' => 'AND',
-//                    array(
-//                        'key' => 'transport-status',
-//                        'value' => 3,
-//                        'compare' => '!=',
-//                    ),
                     array(
                         'key' => 'deadline-of-proposition-transport-offer',
                         'value' => $today,
@@ -2520,8 +2526,27 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
                         'compare' => 'LIKE',
                     ),
                     array(
+                        'key' => 'destination-city-transport-offer',
+                        'value' => $destination_city,
+                        'compare' => 'LIKE',
+                    )
+                ),
+                array(
+                    'relation' => 'AND',
+//                        array(
+//                            'key' => 'transport-status',
+//                            'value' => 3,
+//                            'compare' => '!=',
+//                        ),
+                    array(
+                        'key' => 'deadline-of-proposition-transport-offer',
+                        'value' => $today,
+                        'compare' => '>=',
+                        'type' => 'DATE'
+                    ),
+                    array(
                         'key' => 'destination-state-transport-offer',
-                        'value' => $destination_state,
+                        'value' => $destination_country,
                         'compare' => 'LIKE',
                     ),
                     array(
@@ -2529,11 +2554,42 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters() {
                         'value' => $destination_city,
                         'compare' => 'LIKE',
                     )
-                );
-            }
-            $args['meta_query'] = $meta_query;
+                )
+            );
+        } else {
+            $meta_query = array(
+                'relation' => 'AND',
+//                    array(
+//                        'key' => 'transport-status',
+//                        'value' => 3,
+//                        'compare' => '!=',
+//                    ),
+                array(
+                    'key' => 'deadline-of-proposition-transport-offer',
+                    'value' => $today,
+                    'compare' => '>=',
+                    'type' => 'DATE'
+                ),
+                array(
+                    'key' => 'destination-country-transport-offer',
+                    'value' => $destination_country,
+                    'compare' => 'LIKE',
+                ),
+                array(
+                    'key' => 'destination-state-transport-offer',
+                    'value' => $destination_state,
+                    'compare' => 'LIKE',
+                ),
+                array(
+                    'key' => 'destination-city-transport-offer',
+                    'value' => $destination_city,
+                    'compare' => 'LIKE',
+                )
+            );
         }
+        $args['meta_query'] = $meta_query;
     }
+
     return $args;
 }
 
@@ -2647,7 +2703,7 @@ function getCountryRegionCityInformations($locality) {
         $country = "";
         $state = "";
         $city = $locality;
-        //array containing city name, region name, and country name of start
+//array containing city name, region name, and country name of start
         $localities = explode(", ", $city);
         if (count($localities) == 2) {
             $city = $localities[0];
