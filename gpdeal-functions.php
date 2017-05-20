@@ -18,10 +18,30 @@ $sitekey = '6LfoxhcUAAAAAL3L_vo5dnG1csXgdaYYf5APUTqn'; // votre clé publique
 
 add_action('after_setup_theme', 'my_theme_supports');
 
+/* * ******************************Change the text domain ********************************************** */
+// CHANGE LOCAL LANGUAGE
+// must be called before load_theme_textdomain()
+//add_filter( 'locale', 'my_theme_localized' );
+//function my_theme_localized( $locale )
+//{
+//	if ( isset( $_GET['l'] ) )
+//	{
+//		return sanitize_key( $_GET['l'] );
+//	}
+//        do_action( 'pll_language_defined', 'en', pll_current_language(get_locale()));
+//	return $locale;
+//}
+//load_theme_textdomain( 'gpdealdomain', get_template_directory() . '/languages' );
+
+
 add_action('init', 'my_custom_init');
 
 function my_awesome_mail_content_type() {
     return "text/html";
+}
+
+function text_domain_setup() {
+    load_theme_textdomain('gpdealdomain', get_template_directory() . '/languages');
 }
 
 add_filter("wp_mail_content_type", "my_awesome_mail_content_type");
@@ -32,12 +52,6 @@ function wpb_sender_email($original_email_address) {
     } else {
         return $original_email_address;
     }
-}
-
-//This function Un-quotes a quoted string even if it is more than one
-function removeslashes($string) {
-    $string = implode("", explode("\\", $string));
-    return stripslashes(trim($string));
 }
 
 // Function to change sender name
@@ -53,6 +67,50 @@ function wpb_sender_name($original_name_from) {
 add_filter('wp_mail_from', 'wpb_sender_email');
 add_filter('wp_mail_from_name', 'wpb_sender_name');
 
+//Action for notifing user for new post available
+add_action("publish_post", "gpdeal_publication_notification");
+
+add_action("post_updated", "gpdeal_publication_notification");
+
+function gpdeal_publication_notification($post_ID) {
+    if ('publish' != get_post_status($post_ID)) {
+        return false;
+    }
+    $post = get_post($post_ID);
+    $post_type = get_post_type($post);
+    if ('transport-offer' == $post_type) {
+        gpdeal_send_notification_unsatisfied_package_user($post_ID);
+    }
+}
+
+//This function Un-quotes a quoted string even if it is more than one
+function removeslashes($string) {
+    $string = implode("", explode("\\", $string));
+    return stripslashes(trim($string));
+}
+
+add_filter('auth_cookie_expiration', 'my_expiration_filter', 99, 3);
+
+function my_expiration_filter($expiration, $user_id, $remember) {
+
+    //if "remember me" is checked;
+    if ($remember) {
+        //WP defaults to 2 weeks;
+        $expiration = 14 * 24 * 60 * 60; //UPDATE HERE;
+    } else {
+        //WP defaults to 48 hrs/2 days;
+        $expiration = 2 * 24 * 60 * 60; //UPDATE HERE;
+    }
+
+    //http://en.wikipedia.org/wiki/Year_2038_problem
+    if (PHP_INT_MAX - time() < $expiration) {
+        //Fix to a little bit earlier!
+        $expiration = PHP_INT_MAX - time() - 5;
+    }
+
+    return $expiration;
+}
+
 function woocommerce_support() {
     add_theme_support('woocommerce');
 }
@@ -67,6 +125,7 @@ function my_theme_supports() {
     woocommerce_support();
     childtheme_formats();
     remove_theme_supports();
+    text_domain_setup();
 }
 
 function remove_theme_supports() {
@@ -75,12 +134,51 @@ function remove_theme_supports() {
 }
 
 //Add additional role customer for every user because we want to use it in woocommerce
-add_action('user_register', 'add_secondary_role', 10, 1);
+add_action('user_register', 'custom_registration_user_function', 10, 1);
+
+function custom_registration_user_function($user_id) {
+    add_secondary_role($user_id);
+    gpdeal_send_activate_link($user_id);
+}
 
 function add_secondary_role($user_id) {
 
     $user = get_user_by('id', $user_id);
     $user->add_role('customer');
+}
+
+function gpdeal_send_activate_link($user_id) {
+    $hash = sha1(uniqid(mt_rand(), true));
+    update_user_meta($user_id, 'hash', $hash);
+    $user_data = get_userdata($user_id);
+    $headers[] = 'Content-Type: text/html; charset=UTF-8';
+    $headers[] = 'From: GPDEAL INFOS <infos@gpdeal.com>';
+    $headers[] = 'Bcc:<erictonyelissouck@yahoo.fr>';
+
+    $subject = "Global Parcel Deal - " . __("ACTIVATION OF ACCOUNT", "gpdealdomain");
+
+    $gp_username = $user_data->first_name != "" ? $user_data->first_name . " " . $user_data->last_name : $user_data->last_name;
+    $civility = get_user_meta($user_data->ID, "gender", true);
+    ob_start();
+    ?>
+
+    <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Welcome in", "gpdealdomain"); ?> Gobal Parcel Deal<?php if ($civility != ""): ?> <?php echo __($civility, "gpdealdomain"); ?> <?php endif ?><?php echo $gp_username; ?>, </p>
+
+    <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Please clik on", "gpdealdomain"); ?> <a href="<?php echo esc_url(add_query_arg(array('id' => $user_data->user_login, 'key' => get_user_meta($user_data->ID, "hash", true)), get_permalink(get_page_by_path(__('activate-your-account', 'gpdealdomain'))))); ?>"><?php _e("this link", "gpdealdomain"); ?></a> <?php _e("to activate your account", "gpdealdomain"); ?>.</p><br>
+
+    <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Cordially", "gpdealdomain"); ?>,</p>
+    <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("The team", "gpdealdomain"); ?> Global Parcel Deal</p>
+    <p><a href="<?php echo home_url('/'); ?>"><img src="<?php echo get_template_directory_uri() ?>/assets/images/logo_gpdeal.png" style="width: 115px;"></a></p>
+    <?php
+    $body = ob_get_contents();
+    ob_end_clean();
+    wp_mail($user_data->user_email, $subject, $body, $headers);
+}
+
+add_action('profile_update', 'custom_profile_update_function', 10, 2);
+
+function custom_profile_update_function($user_id, $old_user_data) {
+    gpdeal_send_activate_link($user_id);
 }
 
 //Check whether a user has a specifique role
@@ -93,11 +191,11 @@ function get_user_role_by_user_id($user_id) {
     $user = get_userdata($user_id);
     $roles = $user->roles;
     if (in_array('particular', $roles)) {
-        return __('Particulier', 'gpdealdomain');
+        return __('Particular', 'gpdealdomain');
     } elseif (in_array('professional', $roles)) {
-        return __('Professionnel', 'gpdealdomain');
+        return __('Professionnal', 'gpdealdomain');
     } elseif (in_array('enterprise', $roles)) {
-        return __('Entreprise', 'gpdealdomain');
+        return __('Enterprise', 'gpdealdomain');
     } else {
         return "";
     }
@@ -108,6 +206,44 @@ function get_role_of_user($user_id) {
     $user = get_userdata($user_id);
     return empty($user) ? array() : $user->roles;
 }
+
+/* * ****************************************Customize user registration form ****************************************************** */
+//1. Add a new form element...
+add_action('register_form', 'myplugin_register_form');
+
+function myplugin_register_form() {
+    toto();
+    $first_name = (!empty($_POST['first_name']) ) ? trim($_POST['first_name']) : '';
+    ?>
+    <p>
+        <label for="first_name"><?php _e('First Name', 'mydomain') ?><br />
+            <input type="text" name="first_name" id="first_name" class="input" value="<?php echo esc_att(wp_unslash($first_name)); ?>" size="25" /></label>
+    </p>
+    <?php
+}
+
+//2. Add validation. In this case, we make sure first_name is required.
+add_filter('registration_errors', 'myplugin_registration_errors', 10, 3);
+
+function myplugin_registration_errors($errors, $sanitized_user_login, $user_email) {
+
+    if (empty($_POST['first_name']) || !empty($_POST['first_name']) && trim($_POST['first_name']) == '') {
+        $errors->add('first_name_error', __('<strong>ERROR</strong>: You must include a first name.', 'mydomain'));
+    }
+
+    return $errors;
+}
+
+//3. Finally, save our extra registration user meta.
+add_action('user_register', 'myplugin_user_register');
+
+function myplugin_user_register($user_id) {
+    if (!empty($_POST['first_name'])) {
+        update_user_meta($user_id, 'first_name', trim($_POST['first_name']));
+    }
+}
+
+/* * ******************************************************************************************************************************** */
 
 function post_type_transport_offer_init() {
     $labels = array(
@@ -442,7 +578,7 @@ function my_custom_init() {
     post_type_term_use_init();
     post_type_city_init();
     create_transport_offer_taxonomies();
-    addUserCustomsField();
+    //addUserCustomsField();
     add_my_featured_image_to_home();
 }
 
@@ -544,7 +680,7 @@ function register_user() {
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
         if (isset($_POST['testunicity']) && $_POST['testunicity'] = 'yes' && $_POST['g-recaptcha-response']) {
             if (!verify_use_grecaptcha($_POST['g-recaptcha-response'])) {
-                $json = array("message" => "Nous n'avons pas pu verifier votre code de sécurité. Verifiez le puis essayez à nouveau");
+                $json = array("message" => __("We could not verify your security code. Verify it and try again", "gpdealdomain"));
                 return wp_send_json_error($json);
             }
             $user_login = removeslashes(esc_attr(trim($_POST['username'])));
@@ -552,13 +688,13 @@ function register_user() {
             $unique_user_email = get_user_by('email', $user_email);
             $unique_user_login = get_user_by('login', $user_login);
             if ($unique_user_login) {
-                $json = array("message" => "Un utilisateur avec ce pseudo existe déjà veuillez le modifier");
+                $json = array("message" => __("A user with this username already exists, please change it", "gpdealdomain"));
                 return wp_send_json_error($json);
             } elseif ($unique_user_email) {
-                $json = array("message" => "Un utilisateur avec cet email existe déjà veuillez le modifier");
+                $json = array("message" => __("A user with this email already exists please change it", "gpdealdomain"));
                 return wp_send_json_error($json);
             } else {
-                $json = array("message" => "Ajout possible");
+                $json = array("message" => __("Add is possible", "gpdealdomain"));
                 return wp_send_json_success($json);
             }
         }
@@ -598,6 +734,7 @@ function register_user() {
 
             $user_id = wp_insert_user($new_user_data);
             if (!is_wp_error($user_id)) {
+                update_user_meta($user_id, 'activate', 1);
                 update_user_meta($user_id, 'plain-text-password', $user_pass);
                 update_user_meta($user_id, 'birthdate', date('Y-m-d H:i:s', strtotime(str_replace('/', '-', $birthdate))));
                 update_user_meta($user_id, 'gender', $gender);
@@ -609,7 +746,7 @@ function register_user() {
                 update_user_meta($user_id, 'mobile-phone-number', $mobile_phone_number);
                 update_user_meta($user_id, 'test-question-ID', $test_question_ID);
                 update_user_meta($user_id, 'answer-test-question', $answer_test_question);
-                update_user_meta($user_id, 'identity-status', 0);
+                update_user_meta($user_id, 'identity-status', 1);
                 update_user_meta($user_id, 'profile-picture-ID', $profile_picture_id);
                 update_user_meta($user_id, 'identity-file-ID', $identity_file_id);
                 if ($receive_notifications && $receive_notifications == 'on') {
@@ -662,20 +799,7 @@ function register_user() {
             $user_id = wp_insert_user($new_user_data);
 
             if (!is_wp_error($user_id)) {
-//                if (!empty($_FILES['company_logo'])) {
-//                    $logo_pro = $_FILES['company_logo'];
-//                    $attachment_id = upload_user_file($logo_pro);
-//                    update_user_meta($user_id, 'company_logo_ID', $attachment_id);
-//                }
-//                if (!empty($_FILES['company_attachments'])) {
-//                    $company_attachements = $_FILES['company_attachments'];
-//                    $company_attachements_ids = array();
-//                    foreach ($company_attachements as $company_attachement) {
-//                        $attachment_id = upload_user_file($company_attachement);
-//                        $company_attachements_ids[] = $attachment_id;
-//                    }
-//                    update_user_meta($user_id, 'company_attachements_IDs', $company_attachements_ids);
-//                }
+                update_user_meta($user_id, 'activate', 1);
                 update_user_meta($user_id, 'plain-text-password', $user_pass_pro);
                 update_user_meta($user_id, 'company-name', $company_name_pro);
                 update_user_meta($user_id, 'company-legal-form', $company_legal_form_pro);
@@ -702,7 +826,7 @@ function register_user() {
                 update_user_meta($user_id, 'email-representative2', $email_representative2_pro);
                 update_user_meta($user_id, 'test-question-ID', $test_question_ID_pro);
                 update_user_meta($user_id, 'answer-test-question', $answer_test_question_pro);
-                update_user_meta($user_id, 'identity-status', 0);
+                update_user_meta($user_id, 'identity-status', 1);
                 update_user_meta($user_id, 'company-logo-ID', $company_logo_id);
                 update_user_meta($user_id, 'identity-file-ID', $identity_file_pro_id);
                 if ($receive_notifications_pro && $receive_notifications_pro == 'on') {
@@ -714,21 +838,16 @@ function register_user() {
         }
 
         if (!is_wp_error($user_id)) {
-            // Set the global user object
-            $current_user = get_user_by('id', $user_id);
-
-            // set the WP login cookie
-            $secure_cookie = is_ssl() ? true : false;
-            wp_set_auth_cookie($user_id, true, $secure_cookie);
-            wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain'))));
+            $_SESSION['success_registration_message']= __("Your account has been successfully created. The activation link was sent to you by e-mail to the email address of your account", "gpdealdomain");
+            wp_safe_redirect(get_permalink(get_page_by_path(__("confirmation-registration", 'gpdealdomain'))));
             exit;
         } else {
-            wp_safe_redirect(get_permalink(get_page_by_path(__('inscription', 'gpdealdomain'))));
+            wp_safe_redirect(get_permalink(get_page_by_path(__('registration', 'gpdealdomain'))));
             exit;
         }
 //        }
     } else {
-        $_SESSION['error_message'] = "Code de sécurité introuvable";
+        $_SESSION['error_message'] = __("Security code not found", "gpdealdomain");
     }
 }
 
@@ -741,13 +860,13 @@ function update_user($user_id) {
             $unique_user_email = get_user_by('email', $user_email);
             $unique_user_login = get_user_by('login', $user_login);
             if ($unique_user_login && $unique_user_login->ID != $user_id) {
-                $json = array("message" => "Un utilisateur avec ce pseudo existe déjà veuillez le modifier");
+                $json = array("message" => __("A user with this username already exists, please change it", "gpdealdomain"));
                 return wp_send_json_error($json);
             } elseif ($unique_user_email && $unique_user_email->ID != $user_id) {
-                $json = array("message" => "Un utilisateur avec cet email existe déjà veuillez le modifier");
+                $json = array("message" => __("A user with this email already exists please change it", "gpdealdomain"));
                 return wp_send_json_error($json);
             } else {
-                $json = array("message" => "Modification possible");
+                $json = array("message" => __("Updating is possible", "gpdealdomain"));
                 return wp_send_json_success($json);
             }
         }
@@ -904,10 +1023,10 @@ function update_user($user_id) {
             // set the WP login cookie
             $secure_cookie = is_ssl() ? true : false;
             wp_set_auth_cookie($user_id, true, $secure_cookie);
-            wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain'))));
+            wp_safe_redirect(get_permalink(get_page_by_path(__('my-account', 'gpdealdomain'))));
             exit;
         } else {
-            wp_safe_redirect(get_permalink(get_page_by_path(__('inscription', 'gpdealdomain'))));
+            wp_safe_redirect(get_permalink(get_page_by_path(__('registration', 'gpdealdomain'))));
             exit;
         }
     }
@@ -925,31 +1044,51 @@ function get_password() {
             $test_question_ID_user = get_user_meta($user_id, 'test-question-ID', true);
             $answer_test_question_user = get_user_meta($user_id, 'answer-test-question', true);
             if ($test_question_ID == $test_question_ID_user && $answer_test_question == $answer_test_question_user) {
-                $json = array("message" => "Correct informations");
+                $json = array("message" => "Correct information");
                 return wp_send_json_success($json);
             } else {
-                $json = array("message" => "Les informations saisies sont incorrectes (au moins une information est érronée, incomplète ou manquante). Veuillez recommencer votre saisie !!");
+                $json = array("message" => "The information entered is incorrect (at least one piece of information is erroneous, incomplete or missing). Please try again.");
                 return wp_send_json_error($json);
             }
         } else {
-            $json = array("message" => "Utilisateur inexistant");
+            $json = array("message" => "Unknow user");
             return wp_send_json_error($json);
         }
     } else {
         $user_email = removeslashes(esc_attr(trim($_POST['email'])));
         $unique_user_email = get_user_by('email', $user_email);
         $plain_text_password = get_user_meta($unique_user_email->ID, 'plain-text-password', true);
-        //$headers[] = 'Content-Type: text/html; charset=UTF-8';
+
         $headers[] = 'MIME-Version: 1.0';
-        $headers[] = 'Content-Type: text/html; charset=ISO-8859-1';
+        $headers[] = 'Content-Type: text/html; charset=UTF-8';
         $headers[] = 'From: GPDEAL INFOS <infos@gpdeal.com>';
-        //$headers[] = 'Bcc:<apatchong@gmail.com>';
         $headers[] = 'Bcc:<erictonyelissouck@yahoo.fr>';
 
+        $subject = "Global Parcel Deal - " . __("Login credentials", "gpdealdomain");
 
-        $subject = "Communication du mot de passe";
+        $gp_username = $unique_user_email->first_name != "" ? $unique_user_email->first_name . " " . $unique_user_email->last_name : $unique_user_email->last_name;
+        $civility = get_user_meta($unique_user_email->ID, "gender", true);
+        ob_start();
+        ?>
 
-        $body = __("Le mot de passe de votre compte est", "gpdealdomain").": ".$plain_text_password;
+        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Hello", "gpdealdomain"); ?><?php if ($civility != ""): ?> <?php echo __($civility, "gpdealdomain"); ?> <?php endif ?><?php echo $gp_username; ?>, </p>
+        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("You wish to receive your password, we remind you below your login credentials", "gpdealdomain"); ?> : </p>
+        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;">
+        <ul style="font-style: italic; font-size: 12.8px; list-style-type: none;">
+            <li>- <?php _e("Login", "gpdealdomain"); ?>  : <?php echo $unique_user_email->data->user_email; ?> ou <?php echo $unique_user_email->data->user_login; ?></li>
+            <li>- <?php _e("Password", "gpdealdomain"); ?> : <?php echo $plain_text_password; ?></li>
+        </ul>
+        </p>
+        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("For safety reasons, we advise you to change this regularly", "gpdealdomain"); ?>.</p>
+        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Thank you for your confidence, we remain at your disposal for any additional information", "gpdealdomain"); ?>.</p>
+        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Cordially", "gpdealdomain"); ?>,</p>
+        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("The team", "gpdealdomain"); ?> Global Parcel Deal</p>
+        <p><a href="<?php echo home_url('/'); ?>"><img src="<?php echo get_template_directory_uri() ?>/assets/images/logo_gpdeal.png" style="width: 115px;"></a></p>
+        <p style="font-style: italic; color: rgb(0,153,51); font-size: 7pt;"><?php _e("Think about the environment before you print this message", "gpdealdomain"); ?>.</p>
+
+        <?php
+        $body = ob_get_contents();
+        ob_end_clean();
         if (wp_mail($user_email, $subject, $body, $headers)) {
             $_SESSION['success_send_password'] = true;
         } else {
@@ -964,10 +1103,10 @@ function gp_reset_password() {
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
         $old_password = esc_attr($_POST['old_password']);
         if ($current_user && wp_check_password($old_password, $current_user->data->user_pass, $current_user->ID)) {
-            $json = array("message" => "Correct informations");
+            $json = array("message" => __("Correct informations", "gpdealdomain"));
             return wp_send_json_success($json);
         } else {
-            $json = array("message" => "Mot de passe incorrect");
+            $json = array("message" => __("Incorrect password", "gpdealdomain"));
             return wp_send_json_error($json);
         }
     } else {
@@ -976,11 +1115,11 @@ function gp_reset_password() {
         if ($current_user && wp_check_password($old_password, $current_user->data->user_pass, $current_user->ID)) {
             wp_set_password($new_password, $current_user->ID);
             update_user_meta($current_user->ID, 'plain-text-password', $new_password);
-            wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain') . '/' . __('profil', 'gpdealdomain'))));
+            wp_safe_redirect(get_permalink(get_page_by_path(__('my-account', 'gpdealdomain') . '/' . __('profile', 'gpdealdomain'))));
             exit;
         } else {
-            $_SESSION['reset_password_error'] = __("Impossible de modifier le mot de passe");
-            wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain') . '/' . __('modifier-le-mot-de-passe', 'gpdealdomain'))));
+            $_SESSION['reset_password_error'] = __("Unable to change password", "gpdealdomain");
+            wp_safe_redirect(get_permalink(get_page_by_path(__('my-account', 'gpdealdomain') . '/' . __('change-the-password', 'gpdealdomain'))));
             exit;
         }
     }
@@ -988,7 +1127,7 @@ function gp_reset_password() {
 
 //Function of signing in gpdeal front-end website
 function signin($username, $password, $remember = null, $redirect_to = null) {
-    if ($remember && $remember == 'true') {
+    if ($remember == 'on') {
         $remember = true;
     } else {
         $remember = false;
@@ -1001,18 +1140,32 @@ function signin($username, $password, $remember = null, $redirect_to = null) {
     }
 
     if ($user && wp_check_password($password, $user->data->user_pass, $user->ID)) {
+        if (get_user_meta($user->ID, 'activate', true) == 1) {
+            $_SESSION['signin_error'] = __("Your account is not activated", "gpdealdomain");
+            wp_safe_redirect(get_permalink(get_page_by_path(__('log-in', 'gpdealdomain'))));
+            exit;
+        }
         $creds = array('user_login' => $user->data->user_login, 'user_password' => $password, 'remember' => $remember);
         $secure_cookie = is_ssl() ? true : false;
         $user = wp_signon($creds, $secure_cookie);
+        $_SESSION['REMEMBER_ME'] = $remember;
+        if (!$remember) {
+            $_SESSION['LAST_ACTIVITY'] = time();
+        }
         if ($redirect_to) {
             wp_safe_redirect($redirect_to);
         } else {
-            wp_safe_redirect(get_permalink(get_page_by_path(__('mon-compte', 'gpdealdomain'))));
+            wp_safe_redirect(get_permalink(get_page_by_path(__('my-account', 'gpdealdomain'))));
         }
         exit;
+//        } else {
+//            $_SESSION['signin_error'] = __("Your account is not activated", "gpdealdomain");
+//            wp_safe_redirect(get_permalink(get_page_by_path(__('log-in', 'gpdealdomain'))));
+//            exit;
+//        }
     } else {
-        $_SESSION['signin_error'] = __("Nom d'utilisateur ou mot de passe incorrect");
-        wp_safe_redirect(get_permalink(get_page_by_path(__('connexion', 'gpdealdomain'))));
+        $_SESSION['signin_error'] = __("Username or password incorrect", "gpdealdomain");
+        wp_safe_redirect(get_permalink(get_page_by_path(__('log-in', 'gpdealdomain'))));
         exit;
     }
 }
@@ -1021,11 +1174,11 @@ function signin($username, $password, $remember = null, $redirect_to = null) {
 function getUserRoleName($role) {
     switch ($role) {
         case 'particular':
-            return __('Particulier', "gpdealdomain");
+            return __("Particular", "gpdealdomain");
         case 'professional':
-            return __("Professionnel", "gpdealdomain");
+            return __("Professional", "gpdealdomain");
         case 'enterprise':
-            return __('Entreprise', "gpdealdomain");
+            return __('Enterprise', "gpdealdomain");
         default :
             return $role;
     }
@@ -1035,10 +1188,10 @@ function getUserRoleName($role) {
 function getGenderHoldName($gender) {
     switch ($gender) {
         case 'M':
-            return 'Masculin';
+            return __('Masculin', 'gpdealdomain');
             break;
         case 'F':
-            return "Feminin";
+            return __("Feminin", 'gpdealdomain');
             break;
         default :
             return '';
@@ -1071,7 +1224,8 @@ function getCitiesListOfState($stateCode = null) {
 
 //Function use to retrieve a list of cities of a specific State
 function getCurrenciesList() {
-    $currencies = array(['code' => 'EU', 'name' => 'EURO'], ['code' => 'USD', 'name' => 'Dollard Americain'], ['code' => 'FCFA', 'name' => 'Franc CFA']
+    $currencies = array(['code' => 'USD', 'name' => 'Dollard Americain'], ['code' => 'CAD', 'name' => 'Dollard Canadien'], ['code' => 'EUR', 'name' => 'EURO'], ['code' => 'XAF', 'name' => 'Franc CFA Afrique Centrale BEAC'],
+        ['code' => 'CHF', 'name' => 'Franc suisse'], ['code' => 'GBP', 'name' => 'Livre sterling'], ['code' => 'NGN', 'name' => 'Naira'], ['code' => 'ZAR', 'name' => 'Rand RSA']
     );
     return $currencies;
 }
@@ -1080,45 +1234,20 @@ function getCurrenciesList() {
 function sendPackage($package_data) {
     if ($package_data) {
         $type = $package_data['package_type'];
-        $content = $package_data['portable_objects'];
+        $package_content = $package_data['package_content'];
         $length = $package_data['package_dimensions_length'];
         $width = $package_data['package_dimensions_width'];
         $height = $package_data['package_dimensions_height'];
         $weight = $package_data['package_weight'];
+        $start_country = $package_data['start_country'];
+        $start_state = $package_data['start_state'];
         $start_city = $package_data['start_city'];
         $start_date = $package_data['start_date'];
+        $destination_country = $package_data['destination_country'];
+        $destination_state = $package_data['destination_state'];
         $destination_city = $package_data['destination_city'];
         $destination_date = $package_data['destination_date'];
         $package_picture_id = $package_data['package_picture_id'];
-
-        $start_country = "";
-        $start_state = "";
-//array containing city name, region name, and country name of start
-        $start_localities = explode(", ", $start_city);
-        if (count($start_localities) == 2) {
-            $start_city = $start_localities[0];
-            $start_country = $start_localities[1];
-            $start_state = getRegionByCityAndCountry($start_city, $start_country);
-        } elseif (count($start_localities) == 3) {
-            $start_city = $start_localities[0];
-            $start_state = $start_localities[1];
-            $start_country = $start_localities[2];
-        }
-
-
-        $destination_country = "";
-        $destination_state = "";
-//array containing city name, region name, and country name of destination
-        $destination_localities = explode(", ", $destination_city);
-        if (count($destination_localities) == 2) {
-            $destination_city = $destination_localities[0];
-            $destination_country = $destination_localities[1];
-            $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
-        } elseif (count($destination_localities) == 3) {
-            $destination_city = $destination_localities[0];
-            $destination_state = $destination_localities[1];
-            $destination_country = $destination_localities[2];
-        }
 
         $date = new DateTime('now');
         $post_title = str_replace(":", "", str_replace("-", "", str_replace(" ", "", "P" . $date->format('Y-m-d H:i:s') . $date->getTimestamp())));
@@ -1126,15 +1255,15 @@ function sendPackage($package_data) {
             'post_title' => wp_strip_all_tags($post_title),
             'post_type' => 'package',
             'post_author' => get_current_user_id(),
-            //'post_content' => $post_title,
             'post_status' => 'publish',
-            'tax_input' => array('type_package' => array(intval($type)), 'portable-object' => $content),
+            'tax_input' => array('type_package' => array(intval($type))),
             'meta_input' => array(
                 'length' => floatval($length),
                 'width' => floatval($width),
                 'height' => floatval($height),
                 'weight' => floatval($weight),
                 'package-number' => $post_title,
+                'package-content' => $package_content,
                 'departure-country-package' => $start_country,
                 'departure-state-package' => $start_state,
                 'departure-city-package' => $start_city,
@@ -1157,62 +1286,31 @@ function sendPackage($package_data) {
 function updateSendPackage($post_ID, $package_data) {
     if ($post_ID && $package_data) {
         $type = $package_data['package_type'];
-        $content = $package_data['portable_objects'];
+        $package_content = $package_data['package_content'];
         $length = $package_data['package_dimensions_length'];
         $width = $package_data['package_dimensions_width'];
         $height = $package_data['package_dimensions_height'];
         $weight = $package_data['package_weight'];
+        $start_country = $package_data['start_country'];
+        $start_state = $package_data['start_state'];
         $start_city = $package_data['start_city'];
         $start_date = $package_data['start_date'];
+        $destination_country = $package_data['destination_country'];
+        $destination_state = $package_data['destination_state'];
         $destination_city = $package_data['destination_city'];
         $destination_date = $package_data['destination_date'];
         $package_picture_id = $package_data['package_picture_id'];
 
-//$date = new DateTime('now');
-//$post_title = "P-".$date->format('Y-m-d H:i:s').'-'.$date->getTimestamp();
-        $start_country = "";
-        $start_state = "";
-//array containing city name, region name, and country name of start
-        $start_localities = explode(", ", $start_city);
-        if (count($start_localities) == 2) {
-            $start_city = $start_localities[0];
-            $start_country = $start_localities[1];
-            $start_state = getRegionByCityAndCountry($start_city, $start_country);
-        } elseif (count($start_localities) == 3) {
-            $start_city = $start_localities[0];
-            $start_state = $start_localities[1];
-            $start_country = $start_localities[2];
-        }
 
-
-        $destination_country = "";
-        $destination_state = "";
-//array containing city name, region name, and country name of destination
-        $destination_localities = explode(", ", $destination_city);
-        if (count($destination_localities) == 2) {
-            $destination_city = $destination_localities[0];
-            $destination_country = $destination_localities[1];
-            $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
-        } elseif (count($destination_localities) == 3) {
-            $destination_city = $destination_localities[0];
-            $destination_state = $destination_localities[1];
-            $destination_country = $destination_localities[2];
-        }
         $post_args = array(
             'ID' => $post_ID,
-            //'post_title' => wp_strip_all_tags($post_title),
-            //'post_name' => sanitize_title_with_dashes($post_title,'','save'),
-            //'post_type' => 'package',
-            //'post_author' => get_current_user_id(),
-            //'post_content' => $post_title,
-            //'post_status' => 'publish',
-            'tax_input' => array('type_package' => array(intval($type)), 'portable-object' => $content),
+            'tax_input' => array('type_package' => array(intval($type))),
             'meta_input' => array(
+                'package-content' => $package_content,
                 'length' => floatval($length),
                 'width' => floatval($width),
                 'height' => floatval($height),
                 'weight' => floatval($weight),
-                //'package-number' => $post_title,
                 'departure-country-package' => $start_country,
                 'departure-state-package' => $start_state,
                 'departure-city-package' => $start_city,
@@ -1225,6 +1323,11 @@ function updateSendPackage($post_ID, $package_data) {
             )
         );
         $package_id = wp_update_post($post_args, true);
+//        $today = new \DateTime('today');
+//        $start_date_datetime = new \DateTime($start_date);
+//        if($today <= $start_date_datetime){
+//            update_post_meta($package_id, 'package-status', 1);
+//        }
         return $package_id;
     }
 }
@@ -1246,15 +1349,15 @@ function getAndEchoAllReplyForCarrier($evaluation_id, $comment_id) {
                     ?>
                     <div class="comment">
                         <a class="avatar">
-                            <img  class="ui avatar image" <?php if ($comment_profile_picture_id): ?> src= "<?php echo wp_get_attachment_url($comment_profile_picture_id); ?>" <?php else: ?> src="<?php echo get_template_directory_uri() ?>/assets/images/avatar.png"<?php endif ?>>
+                            <img  <?php if ($comment_profile_picture_id): ?> src= "<?php echo wp_make_link_relative(wp_get_attachment_url($comment_profile_picture_id)); ?>" <?php else: ?> src="<?php echo wp_make_link_relative(get_template_directory_uri()) ?>/assets/images/avatar.png"<?php endif ?>>
                         </a>
                         <div class="content">
                             <a class="author"><?php echo $comment_user->user_login; ?></a>
                             <div class="metadata">
                                 <div class="date"><?php
                                     $date = apply_filters('get_comment_time', $comment->comment_date, 'U', false, true, $comment);
-                                    echo "a commenté il y a " . human_time_diff(strtotime($date), current_time('timestamp'));
-                                    ?></div>
+                                    echo __("has commented", "gpdealdomain") . " " . human_time_diff(strtotime($date), current_time('timestamp'));
+                                    ?> <?php _e("ago", "gpdealdomain"); ?></div>
                             </div>
                             <div class="text">
                                 <p><?php echo $comment->comment_content; ?></p>
@@ -1286,17 +1389,18 @@ function getAndechoAllReply($evaluation_id, $comment_id, $transport_offer_link) 
                 <?php
                 foreach ($comments_children as $comment):
                     $comment_user = get_userdata($comment->user_id);
+                    $comment_profile_picture_id = get_user_meta($comment->user_id, 'profile-picture-ID', true) ? get_user_meta($comment->user_id, 'profile-picture-ID', true) : get_user_meta($comment->user_id, 'company-logo-ID', true);
                     ?>
                     <div class="comment">
                         <a class="avatar">
-                            <img src="<?php echo get_template_directory_uri() ?>/assets/images/avatar.png">
+                            <img  class="ui avatar image" <?php if ($comment_profile_picture_id): ?> src= "<?php echo wp_make_link_relative(wp_get_attachment_url($comment_profile_picture_id)); ?>" <?php else: ?> src="<?php echo wp_make_link_relative(get_template_directory_uri()) ?>/assets/images/avatar.png"<?php endif ?>>
                         </a>
                         <div class="content">
                             <a class="author"><?php echo $comment_user->user_login; ?></a>
                             <div class="metadata">
                                 <div class="date"><?php
                                     $date = apply_filters('get_comment_time', $comment->comment_date, 'U', false, true, $comment);
-                                    echo "a commenté il y a " . human_time_diff(strtotime($date), current_time('timestamp'));
+                                    echo __("has commented", "gpdealdomain") . " " . human_time_diff(strtotime($date), current_time('timestamp'));
                                     ?></div>
                             </div>
                             <div class="text">
@@ -1304,8 +1408,8 @@ function getAndechoAllReply($evaluation_id, $comment_id, $transport_offer_link) 
                             </div>
                             <?php if ($current_user_comments_count == 0): ?>
                                 <div class="actions">
-                                    <a id="show_comment_reply_form<?php echo $comment->comment_ID; ?>" onclick="show_comment_reply_form(<?php echo $comment->comment_ID; ?>)" class="reply"><?php echo __("Répondre", "gpdealdomain") ?></a>
-                                    <a id="hide_comment_reply_form<?php echo $comment->comment_ID; ?>" onclick="hide_comment_reply_form(<?php echo $comment->comment_ID; ?>)" class="reply" style="display: none"><?php echo __("Annuler", "gpdealdomain") ?></a>
+                                    <a id="show_comment_reply_form<?php echo $comment->comment_ID; ?>" onclick="show_comment_reply_form(<?php echo $comment->comment_ID; ?>)" class="reply"><?php echo __("Answer", "gpdealdomain") ?></a>
+                                    <a id="hide_comment_reply_form<?php echo $comment->comment_ID; ?>" onclick="hide_comment_reply_form(<?php echo $comment->comment_ID; ?>)" class="reply" style="display: none"><?php echo __("Cancel", "gpdealdomain") ?></a>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -1314,7 +1418,7 @@ function getAndechoAllReply($evaluation_id, $comment_id, $transport_offer_link) 
                     <?php if ($current_user_comments_count == 0): ?>
                         <form id="comment_reply_form<?php echo $comment->comment_ID; ?>" class="ui reply form add_comment_reply_form" method="POST" action="<?php echo $transport_offer_link; ?>" onsubmit="add_comment_reply(event, <?php echo $comment->comment_ID; ?>)" style="display: none">
                             <div class="field">
-                                <textarea name="comment_content"></textarea>
+                                <textarea name="comment_content" placeholder="<?php _e("Enter your answer here", "gpdealdomain"); ?>"></textarea>
                             </div>
                             <input type="hidden" name="action" value="add-comment-reply">
                             <input type="hidden" name="evaluation_id" value="<?php echo $evaluation_id; ?>">
@@ -1322,7 +1426,7 @@ function getAndechoAllReply($evaluation_id, $comment_id, $transport_offer_link) 
                             <div class="field">
                                 <div id="server_error_message<?php echo $comment->comment_ID; ?>" class="ui negative message" style="display:none">
                                     <i class="close icon"></i>
-                                    <div id="server_error_content<?php echo $comment->comment_ID; ?>" class="header">Internal server error</div>
+                                    <div id="server_error_content<?php echo $comment->comment_ID; ?>" class="header"><?php _e("Internal server error", "gpdealdomain"); ?></div>
                                 </div>
                                 <div id="error_name_message<?php echo $comment->comment_ID; ?>" class="ui error message" style="display: none">
                                     <i class="close icon"></i>
@@ -1333,7 +1437,7 @@ function getAndechoAllReply($evaluation_id, $comment_id, $transport_offer_link) 
                                 </div>
                             </div>
                             <button class="ui blue submit icon button">
-                                <i class="icon edit"></i> Répondre
+                                <i class="icon edit"></i> <?php _e("Answer", "gpdealdomain"); ?>
                             </button>
                         </form>
                     <?php endif; ?>
@@ -1474,7 +1578,7 @@ function evaluateTransportOffer($evaluation_data) {
                 'transport-offer-ID' => $post->ID,
                 'carrier-author' => get_post_field('post_author', $post->ID),
                 'package-ID' => $evaluation_data['package_id'],
-                'questions' => array(__("Objet livré", "gpdealdomain"), __("Etat des objets", "gpdealdomain"), __("Délais de livraison", "gpdealdomain"), __("Coût", "gpdealdomain"), __("Evaluation globale", "gpdealdomain")),
+                'questions' => array("Items delivered", "State of objects", "Delivery time", "Cost", "Evaluation globale"),
                 'responses' => $evaluation_data['responses']
             )
         );
@@ -1486,7 +1590,7 @@ function evaluateTransportOffer($evaluation_data) {
                 'comment_post_ID' => $evaluation_id, // to which post the comment will show up
                 'comment_author' => $current_user->user_login, //fixed value - can be dynamic 
                 'comment_author_email' => $current_user->user_email, //fixed value - can be dynamic 
-                'comment_author_url' => 'http://testgpdeal.com', //fixed value - can be dynamic 
+                'comment_author_url' => get_site_url(), //fixed value - can be dynamic 
                 'comment_content' => $comment_content, //fixed value - can be dynamic 
                 'comment_type' => '', //empty for regular comments, 'pingback' for pingbacks, 'trackback' for trackbacks
                 'comment_parent' => 0, //0 if it's not a reply to another comment; if it's a reply, mention the parent comment ID here
@@ -1507,55 +1611,39 @@ function saveTransportOffer($transport_offer_data) {
         $transport_method = $transport_offer_data['transport_offer_transport_method'];
         $transport_offer_price = $transport_offer_data['transport_offer_price'];
         $transport_offer_currency = $transport_offer_data['transport_offer_currency'];
+        $transport_offer_price_type = $transport_offer_data['transport_offer_price_type'];
+        $max_length = $transport_offer_data['package_length_max'];
+        $max_width = $transport_offer_data['package_width_max'];
+        $max_height = $transport_offer_data['package_height_max'];
+        $max_weight = $transport_offer_data['package_weight_max'];
+        $start_country = $transport_offer_data['start_country'];
+        $start_state = $transport_offer_data['start_state'];
         $start_city = $transport_offer_data['start_city'];
         $start_date = $transport_offer_data['start_date'];
         $start_deadline = $transport_offer_data['start_deadline'];
+        $destination_country = $transport_offer_data['destination_country'];
+        $destination_state = $transport_offer_data['destination_state'];
         $destination_city = $transport_offer_data['destination_city'];
         $destination_date = $transport_offer_data['destination_date'];
 
         $date = new DateTime('now');
         $post_title = str_replace(":", "", str_replace("-", "", str_replace(" ", "", "TRFR" . $date->format('Y-m-d H:i:s') . $date->getTimestamp())));
 
-        $start_country = "";
-        $start_state = "";
-//array containing city name, region name, and country name of start
-        $start_localities = explode(", ", $start_city);
-        if (count($start_localities) == 2) {
-            $start_city = $start_localities[0];
-            $start_country = $start_localities[1];
-            $start_state = getRegionByCityAndCountry($start_city, $start_country);
-        } elseif (count($start_localities) == 3) {
-            $start_city = $start_localities[0];
-            $start_state = $start_localities[1];
-            $start_country = $start_localities[2];
-        }
-
-
-        $destination_country = "";
-        $destination_state = "";
-//array containing city name, region name, and country name of destination
-        $destination_localities = explode(", ", $destination_city);
-        if (count($destination_localities) == 2) {
-            $destination_city = $destination_localities[0];
-            $destination_country = $destination_localities[1];
-            $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
-        } elseif (count($destination_localities) == 3) {
-            $destination_city = $destination_localities[0];
-            $destination_state = $destination_localities[1];
-            $destination_country = $destination_localities[2];
-        }
-
         $post_args = array(
             'post_title' => wp_strip_all_tags($post_title),
             'post_type' => 'transport-offer',
             'post_author' => get_current_user_id(),
-            //'post_content' => $post_title,
             'post_status' => 'publish',
             'tax_input' => array('type_package' => $package_type, 'transport-method' => array(intval($transport_method))),
             'meta_input' => array(
                 'transport-offer-number' => $post_title,
                 'price' => floatval($transport_offer_price),
                 'currency' => $transport_offer_currency,
+                'price-type' => intval($transport_offer_price_type),
+                'package-length-max' => floatval($max_length),
+                'package-width-max' => floatval($max_width),
+                'package-height-max' => floatval($max_height),
+                'package-weight-max' => floatval($max_weight),
                 'departure-country-transport-offer' => $start_country,
                 'departure-state-transport-offer' => $start_state,
                 'departure-city-transport-offer' => $start_city,
@@ -1581,56 +1669,33 @@ function updateTransportOffer($post_ID, $transport_offer_data) {
         $transport_method = $transport_offer_data['transport_offer_transport_method'];
         $transport_offer_price = $transport_offer_data['transport_offer_price'];
         $transport_offer_currency = $transport_offer_data['transport_offer_currency'];
+        $transport_offer_price_type = $transport_offer_data['transport_offer_price_type'];
+        $max_length = $transport_offer_data['package_length_max'];
+        $max_width = $transport_offer_data['package_width_max'];
+        $max_height = $transport_offer_data['package_height_max'];
+        $max_weight = $transport_offer_data['package_weight_max'];
+        $start_country = $transport_offer_data['start_country'];
+        $start_state = $transport_offer_data['start_state'];
         $start_city = $transport_offer_data['start_city'];
         $start_date = $transport_offer_data['start_date'];
         $start_deadline = $transport_offer_data['start_deadline'];
+        $destination_country = $transport_offer_data['destination_country'];
+        $destination_state = $transport_offer_data['destination_state'];
         $destination_city = $transport_offer_data['destination_city'];
         $destination_date = $transport_offer_data['destination_date'];
 
-//$date = new DateTime('now');
-//$post_title = "TRFR".$date->format('Y-m-d H:i:s').$date->getTimestamp();
-
-        $start_country = "";
-        $start_state = "";
-//array containing city name, region name, and country name of start
-        $start_localities = explode(", ", $start_city);
-        if (count($start_localities) == 2) {
-            $start_city = $start_localities[0];
-            $start_country = $start_localities[1];
-            $start_state = getRegionByCityAndCountry($start_city, $start_country);
-        } elseif (count($start_localities) == 3) {
-            $start_city = $start_localities[0];
-            $start_state = $start_localities[1];
-            $start_country = $start_localities[2];
-        }
-
-
-        $destination_country = "";
-        $destination_state = "";
-//array containing city name, region name, and country name of destination
-        $destination_localities = explode(", ", $destination_city);
-        if (count($destination_localities) == 2) {
-            $destination_city = $destination_localities[0];
-            $destination_country = $destination_localities[1];
-            $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
-        } elseif (count($destination_localities) == 3) {
-            $destination_city = $destination_localities[0];
-            $destination_state = $destination_localities[1];
-            $destination_country = $destination_localities[2];
-        }
 
         $post_args = array(
             'ID' => $post_ID,
-            //'post_title' => wp_strip_all_tags($post_title),
-            //'post_type' => 'transport-offer',
-            //'post_author' => get_current_user_id(),
-            //'post_content' => $post_title,
-            //'post_status' => 'publish',
             'tax_input' => array('type_package' => $package_type, 'transport-method' => array(intval($transport_method))),
             'meta_input' => array(
-                //'transport-offer-number'=>$post_title,
                 'price' => floatval($transport_offer_price),
                 'currency' => $transport_offer_currency,
+                'price-type' => intval($transport_offer_price_type),
+                'package-length-max' => floatval($max_length),
+                'package-width-max' => floatval($max_width),
+                'package-height-max' => floatval($max_height),
+                'package-weight-max' => floatval($max_weight),
                 'departure-country-transport-offer' => $start_country,
                 'departure-state-transport-offer' => $start_state,
                 'departure-city-transport-offer' => $start_city,
@@ -1640,10 +1705,14 @@ function updateTransportOffer($post_ID, $transport_offer_data) {
                 'destination-state-transport-offer' => $destination_state,
                 'destination-city-transport-offer' => $destination_city,
                 'arrival-date-transport-offer' => $destination_date,
-            //'transport-status' => 1
             )
         );
         $transport_offer_id = wp_update_post($post_args, true);
+        $today = new \DateTime('today');
+        $start_deadline_datetime = new \DateTime($start_deadline);
+        if ($today <= $start_deadline_datetime) {
+            update_post_meta($transport_offer_id, 'transport-status', 1);
+        }
         return $transport_offer_id;
     }
 }
@@ -1675,7 +1744,7 @@ function contactus() {
         $message = removeslashes(esc_attr(trim($_POST['message'])));
         $user = get_user_by('email', $email);
         if ($user == null || is_wp_error($user)) {
-            $json = array("message" => __("Utilisateur inexistant", 'gpdealdomain') . ".");
+            $json = array("message" => __("Unknow user", 'gpdealdomain') . ".");
             return wp_send_json_error($json);
         }
         if (is_user_in_role($user->ID, 'particular')) {
@@ -1708,7 +1777,6 @@ function contactus() {
     }
     $headers[] = 'Content-Type: text/html; charset=UTF-8';
     $headers[] = 'From: ' . $sender_name . ' <' . $email . '>';
-//$headers[] = 'Reply-To:' . Input::get('nom') . ' <' . $data['adress'] . '>';
     $headers[] = 'Bcc:<erictonyelissouck@yahoo.fr>';
 
     $to = get_bloginfo('admin_email');
@@ -1717,10 +1785,10 @@ function contactus() {
 
     $body = $message;
     if (wp_mail($to, $subject, $body, $headers)) {
-        $json = array("message" => __("Votre message a été envoyé avec succès", 'si-ogivedomain'));
+        $json = array("message" => __("Your message has been sent successfully", 'gpdealdomain'));
         return wp_send_json_success($json);
     } else {
-        $json = array("message" => __("Erreur lors de l'envoi. Verifier les informations puis réessayer à nouveau", 'si-ogivedomain'));
+        $json = array("message" => __("Error sending. Verify the information and try again", 'gpdealdomain'));
         return wp_send_json_error($json);
     }
 }
@@ -1728,53 +1796,51 @@ function contactus() {
 function getUserIdentityStatus($status) {
     switch ($status) {
         case 0:
-            return "Verification de l'identité encours";
+            return __("Verification of Identity in Progress", "gpdealdomain");
         case 1:
-            return "Non identifié";
+            return __("Verification of Identity in Progress", "gpdealdomain");
         case 2:
-            return "Identifié";
+            return __("Not identified", "gpdealdomain");
+        case 3:
+            return __("Identified", "gpdealdomain");
         default :
-            return "Non identifié";
+            return __("Not identified", "gpdealdomain");
     }
 }
 
 function getPackageStatus($status) {
     switch ($status) {
         case -1:
-            return "Recherche transporteur";
+            return _e("Search carriers", "gpdealdomain");
         case 1:
-            return "Recherche transporteur";
+            return _e("Search carriers", "gpdealdomain");
         case 2:
-            return "Transaction en cours";
+            return _e("Transaction in progress", "gpdealdomain");
         case 3:
-            return "Evaluée/cloturée";
+            return _e("Evaluated/Closed", "gpdealdomain");
         case 4:
-            return "Expirée";
+            return _e("Expired", "gpdealdomain");
         case 5:
-            return "Annulée";
+            return _e("Canceled", "gpdealdomain");
         default :
-            return "Recherche transporteur";
+            return _e("No Status", "gpdealdomain");
     }
 }
 
 function getTransportStatus($status) {
     switch ($status) {
         case -1:
-            return "En cours";
+            return _e("In progress", "gpdealdomain");
         case 1:
-            return "En cours";
+            return _e("In progress", "gpdealdomain");
         case 2:
-            return "Expirée";
+            return _e("Expired", "gpdealdomain");
         case 3:
-            return "Annulée";
-//        case 4:
-//            return "Evaluée/cloturée";
-//        case 5:
-//            return "Expirée";
-//        case 6:
-//            return "Annulée";
+            return _e("Canceled", "gpdealdomain");
+        case 4:
+            return _e("Expired", "gpdealdomain");
         default :
-            return "En cours";
+            return _e("No Status", "gpdealdomain");
     }
 }
 
@@ -1783,15 +1849,19 @@ function getWPQueryArgsForCarrierSearch($search_data) {
     $today = date('Y-m-d H:i:s', strtotime('today'));
     $args = array(
         'post_type' => 'transport-offer',
-        "post_status" => 'publish'
+        "post_status" => 'publish',
+        'orderby' => 'post_date',
+        'order' => 'DESC'
     );
     if (is_user_logged_in()) {
         $args["author__not_in"] = array(get_current_user_id());
     }
     if ($search_data) {
         $package_type = $search_data['package_type'];
+        $start_country = $search_data['start_country'];
         $start_city = $search_data['start_city'];
         $start_date = $search_data['start_date'];
+        $destination_country = $search_data['destination_country'];
         $destination_city = $search_data['destination_city'];
         $destination_date = $search_data['destination_date'];
 
@@ -1808,28 +1878,9 @@ function getWPQueryArgsForCarrierSearch($search_data) {
 
         $meta_query = array(
             'relation' => 'AND',
-//            array(
-//                'key' => 'transport-status',
-//                'value' => 3,
-//                'compare' => '!=',
-//            )
         );
 
-
-        if ($start_city && $start_city != "") {
-            $start_country = "";
-            $start_state = "";
-            //array containing city name, region name, and country name of start
-            $start_localities = explode(", ", $start_city);
-            if (count($start_localities) == 2) {
-                $start_city = $start_localities[0];
-                $start_country = $start_localities[1];
-                //$start_state = getRegionByCityAndCountry($start_state, $start_country);
-            } elseif (count($start_localities) == 3) {
-                $start_city = $start_localities[0];
-                $start_state = $start_localities[1];
-                $start_country = $start_localities[2];
-            }
+        if ($start_city != "") {
             $meta_query[] = array(
                 'key' => 'departure-city-transport-offer',
                 'value' => $start_city,
@@ -1854,26 +1905,12 @@ function getWPQueryArgsForCarrierSearch($search_data) {
             );
         }
 
-        if ($destination_city && $destination_city != "") {
-            $destination_country = "";
-            $destination_state = "";
-            //array containing city name, region name, and country name of destination
-            $destination_localities = explode(", ", $destination_city);
-            if (count($destination_localities) == 2) {
-                $destination_city = $destination_localities[0];
-                $destination_country = $destination_localities[1];
-                //$destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
-            } elseif (count($destination_localities) == 3) {
-                $destination_city = $destination_localities[0];
-                $destination_state = $destination_localities[1];
-                $destination_country = $destination_localities[2];
-            }
+        if ($destination_city != "") {
             $meta_query[] = array(
                 'key' => 'destination-city-transport-offer',
                 'value' => $destination_city,
                 'compare' => 'LIKE',
             );
-
             if ($destination_country != "") {
                 $meta_query[] = array(
                     'key' => 'destination-country-transport-offer',
@@ -1884,7 +1921,6 @@ function getWPQueryArgsForCarrierSearch($search_data) {
         }
 
         if ($destination_date) {
-
             $meta_query[] = array(
                 'key' => 'arrival-date-transport-offer',
                 'value' => date('Y-m-d H:i:s', strtotime(str_replace('/', '-', $destination_date))),
@@ -1907,15 +1943,19 @@ function getWPQueryArgsForCarrierSearch($search_data) {
 function getWPQueryArgsForUnsatifiedSendPackages($search_data) {
     $args = array(
         'post_type' => 'package',
-        "post_status" => 'publish'
+        "post_status" => 'publish',
+        'orderby' => 'post_date',
+        'order' => 'DESC'
     );
     if (is_user_logged_in()) {
         $args["author__not_in"] = array(get_current_user_id());
     }
     if ($search_data) {
         $package_type = $search_data['package_type'];
+        $start_country = $search_data['start_country'];
         $start_city = $search_data['start_city'];
         $start_date = $search_data['start_date'];
+        $destination_country = $search_data['destination_country'];
         $destination_city = $search_data['destination_city'];
         $destination_date = $search_data['destination_date'];
 
@@ -1939,20 +1979,7 @@ function getWPQueryArgsForUnsatifiedSendPackages($search_data) {
         );
 
 
-        if ($start_city && $start_city != "") {
-            $start_country = "";
-            $start_state = "";
-            //array containing city name, region name, and country name of start
-            $start_localities = explode(", ", $start_city);
-            if (count($start_localities) == 2) {
-                $start_city = $start_localities[0];
-                $start_country = $start_localities[1];
-                //$start_state = getRegionByCityAndCountry($start_state, $start_country);
-            } elseif (count($start_localities) == 3) {
-                $start_city = $start_localities[0];
-                //$start_state = $start_localities[1];
-                $start_country = $start_localities[2];
-            }
+        if ($start_city != "") {
             $meta_query[] = array(
                 'key' => 'departure-city-package',
                 'value' => $start_city,
@@ -1978,20 +2005,7 @@ function getWPQueryArgsForUnsatifiedSendPackages($search_data) {
         }
 
 
-        if ($destination_city && $destination_city != "") {
-            $destination_country = "";
-            $destination_state = "";
-            //array containing city name, region name, and country name of destination
-            $destination_localities = explode(", ", $destination_city);
-            if (count($destination_localities) == 2) {
-                $destination_city = $destination_localities[0];
-                $destination_country = $destination_localities[1];
-                //$destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
-            } elseif (count($destination_localities) == 3) {
-                $destination_city = $destination_localities[0];
-                //$destination_state = $destination_localities[1];
-                $destination_country = $destination_localities[2];
-            }
+        if ($destination_city != "") {
             $meta_query[] = array(
                 'key' => 'destination-city-package',
                 'value' => $destination_city,
@@ -2026,14 +2040,20 @@ function getWPQueryArgsCarrierSearchForWhichCanInterest($search_data, $exclude_i
     $today = date('Y-m-d H:i:s', strtotime('today'));
     if ($search_data) {
         $package_type = $search_data['package_type'];
+        $start_country = $search_data['start_country'];
+        $start_state = $search_data['start_state'];
         $start_city = $search_data['start_city'];
         $start_date = $search_data['start_date'];
+        $destination_country = $search_data['destination_country'];
+        $destination_state = $search_data['destination_state'];
         $destination_city = $search_data['destination_city'];
         $destination_date = $search_data['destination_date'];
         if ($start_city || $destination_city) {
             $args = array(
                 "post_type" => "transport-offer",
                 "post_status" => 'publish',
+                'orderby' => 'post_date',
+                'order' => 'DESC',
                 "post__not_in" => $exclude_ids
             );
             if (is_user_logged_in()) {
@@ -2055,21 +2075,7 @@ function getWPQueryArgsCarrierSearchForWhichCanInterest($search_data, $exclude_i
             );
 
 
-            if ($start_city && $start_city != "") {
-                $start_country = "";
-                $start_state = "";
-                //array containing city name, region name, and country name of start
-                $start_localities = explode(", ", $start_city);
-                if (count($start_localities) == 2) {
-                    $start_city = $start_localities[0];
-                    $start_country = $start_localities[1];
-                    $start_state = getRegionByCityAndCountry($start_city, $start_country);
-                } elseif (count($start_localities) == 3) {
-                    $start_city = $start_localities[0];
-                    $start_state = $start_localities[1];
-                    $start_country = $start_localities[2];
-                }
-
+            if ($start_city != "") {
                 if ($start_country != "") {
                     $meta_query[] = array(
                         'key' => 'departure-country-transport-offer',
@@ -2102,20 +2108,7 @@ function getWPQueryArgsCarrierSearchForWhichCanInterest($search_data, $exclude_i
                 );
             }
 
-            if ($destination_city && $destination_city != "") {
-                $destination_country = "";
-                $destination_state = "";
-                //array containing city name, region name, and country name of destination
-                $destination_localities = explode(", ", $destination_city);
-                if (count($destination_localities) == 2) {
-                    $destination_city = $destination_localities[0];
-                    $destination_country = $destination_localities[1];
-                    $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
-                } elseif (count($destination_localities) == 3) {
-                    $destination_city = $destination_localities[0];
-                    $destination_state = $destination_localities[1];
-                    $destination_country = $destination_localities[2];
-                }
+            if ($destination_city != "") {
                 if ($destination_country != "") {
                     $meta_query[] = array(
                         'key' => 'destination-country-transport-offer',
@@ -2165,6 +2158,8 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($search_data, $e
     $args = array(
         'post_type' => 'package',
         "post_status" => 'publish',
+        'orderby' => 'post_date',
+        'order' => 'DESC',
         "post__not_in" => $exclude_ids
     );
     if (is_user_logged_in()) {
@@ -2172,8 +2167,12 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($search_data, $e
     }
     if ($search_data) {
         $package_type = $search_data['package_type'];
+        $start_country = $search_data['start_country'];
+        $start_state = $search_data['start_state'];
         $start_city = $search_data['start_city'];
         $start_date = $search_data['start_date'];
+        $destination_country = $search_data['destination_country'];
+        $destination_state = $search_data['destination_state'];
         $destination_city = $search_data['destination_city'];
         $destination_date = $search_data['destination_date'];
 
@@ -2198,20 +2197,6 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($search_data, $e
             );
 
             if ($start_city != "") {
-                $start_country = "";
-                $start_state = "";
-                //array containing city name, region name, and country name of start
-                $start_localities = explode(", ", $start_city);
-                if (count($start_localities) == 2) {
-                    $start_city = $start_localities[0];
-                    $start_country = $start_localities[1];
-                    $start_state = getRegionByCityAndCountry($start_city, $start_country);
-                } elseif (count($start_localities) == 3) {
-                    $start_city = $start_localities[0];
-                    $start_state = $start_localities[1];
-                    $start_country = $start_localities[2];
-                }
-
                 if ($start_country != "") {
                     $meta_query[] = array(
                         'key' => 'departure-country-package',
@@ -2244,19 +2229,6 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($search_data, $e
             }
 
             if ($destination_city) {
-                $destination_country = "";
-                $destination_state = "";
-                //array containing city name, region name, and country name of destination
-                $destination_localities = explode(", ", $destination_city);
-                if (count($destination_localities) == 2) {
-                    $destination_city = $destination_localities[0];
-                    $destination_country = $destination_localities[1];
-                    $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
-                } elseif (count($destination_localities) == 3) {
-                    $destination_city = $destination_localities[0];
-                    $destination_state = $destination_localities[1];
-                    $destination_country = $destination_localities[2];
-                }
                 if ($destination_country != "") {
                     $meta_query[] = array(
                         'key' => 'destination-country-package',
@@ -2295,33 +2267,23 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($search_data, $e
 }
 
 // This Function return arguments of a query for main searching transport offers with start parameters
-function getWPQueryArgsForMainCarrierSearchWithStartParameters($search_query = null) {
+function getWPQueryArgsForMainCarrierSearchWithStartParameters($search_query_data = null) {
     $today = date('Y-m-d H:i:s', strtotime('today'));
     $args = array(
         'post_type' => 'transport-offer',
-        "post_status" => 'publish'
+        "post_status" => 'publish',
+        'orderby' => 'post_date',
+        'order' => 'DESC'
     );
     if (is_user_logged_in()) {
         $args["author__not_in"] = array(get_current_user_id());
     }
 
-
-    if ($search_query) {
-        $start_country = "";
-        $start_state = "";
-        $start_city = $search_query;
+    if ($search_query_data) {
 //array containing city name, region name, and country name of start
-        $start_localities = explode(", ", $start_city);
-        if (count($start_localities) == 2) {
-            $start_city = $start_localities[0];
-            $start_country = $start_localities[1];
-            $start_state = getRegionByCityAndCountry($start_city, $start_country);
-        } elseif (count($start_localities) == 3) {
-            $start_city = $start_localities[0];
-            $start_state = $start_localities[1];
-            $start_country = $start_localities[2];
-        }
-
+        $start_country = $search_query_data['start_country'];
+        $start_state = $search_query_data["start_state"];
+        $start_city = $search_query_data["start_city"];
         if ($start_state == "" && $start_country == "") {
             $meta_query = array(
                 'relation' => 'AND',
@@ -2445,32 +2407,23 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters($search_query = n
 }
 
 // This Function return arguments of a query for main searching transport offers with destination parameters
-function getWPQueryArgsForMainCarrierSearchWithDestinationParameters($search_query = null) {
+function getWPQueryArgsForMainCarrierSearchWithDestinationParameters($search_query_data = null) {
     $today = date('Y-m-d H:i:s', strtotime('today'));
     $args = array(
         'post_type' => 'transport-offer',
-        "post_status" => 'publish'
+        "post_status" => 'publish',
+        'orderby' => 'post_date',
+        'order' => 'DESC'
     );
     if (is_user_logged_in()) {
         $args["author__not_in"] = array(get_current_user_id());
     }
-    if ($search_query) {
-        $destination_country = "";
-        $destination_state = "";
-        $destination_city = $search_query;
+    if ($search_query_data) {
 //array containing city name, region name, and country name of destination
-        $destination_localities = explode(", ", $destination_city);
-        if (count($destination_localities) == 2) {
-            $destination_city = $destination_localities[0];
-            $destination_country = $destination_localities[1];
-            $destination_state = getRegionByCityAndCountry($destination_city, $destination_country);
-        } elseif (count($destination_localities) == 3) {
-            $destination_city = $destination_localities[0];
-            $destination_state = $destination_localities[1];
-            $destination_country = $destination_localities[2];
-        }
 
-
+        $destination_country = $search_query_data['destination_country'];
+        $destination_state = $search_query_data['destination_state'];
+        $destination_city = $search_query_data['destination_city'];
         if ($destination_state == "" && $destination_country == "") {
             $meta_query = array(
                 'relation' => 'AND',
@@ -2646,6 +2599,7 @@ function saveCity($city, $region, $country) {
         'post_type' => 'city',
         'post_status' => 'publish',
         'meta_input' => array(
+            'city' => esc_attr(trim(($city))),
             'region' => esc_attr(trim(($region))),
             'country' => esc_attr(trim(($country)))
         )
@@ -2697,6 +2651,37 @@ function getRegionByCityAndCountry($city, $country) {
     return $region;
 }
 
+function getRegionByCityAndCountry_tmp($city, $country) {
+    $region = "";
+    $args = array(
+        'post_type' => 'city',
+        "post_status" => 'publish',
+        'post_per_page' => 1,
+        'meta_query' => array(
+            'relation' => 'AND',
+            array(
+                'key' => 'city',
+                'value' => $city,
+                'compare' => '='
+            ),
+            array(
+                'key' => 'country',
+                'value' => $country,
+                'compare' => '='
+            )
+        )
+    );
+    $cities = new WP_Query($args);
+    if ($cities->have_posts()) {
+        while ($cities->have_posts()) {
+            $cities->the_post();
+            $region = get_post_meta(get_the_ID(), 'region', true);
+        }
+    }
+    wp_reset_postdata();
+    return $region;
+}
+
 function getCountryRegionCityInformations($locality) {
     $country_region_city = array();
     if ($locality && $locality != "") {
@@ -2721,4 +2706,135 @@ function getCountryRegionCityInformations($locality) {
         );
     }
     return $country_region_city;
+}
+
+/**
+ *  Given a file, i.e. /css/base.css, replaces it with a string containing the
+ *  file's mtime, i.e. /css/base.1221534296.css.
+ *  
+ *  @param $file  The file to be loaded.  Must be an absolute path (i.e.
+ *                starting with slash).
+ */
+function auto_version($file) {
+    if (strpos($file, '/') !== 0 || !file_exists($_SERVER['DOCUMENT_ROOT'] . $file))
+        return $file;
+
+    $mtime = filemtime($_SERVER['DOCUMENT_ROOT'] . $file);
+    return preg_replace('{\\.([^./]+)$}', ".$mtime.\$1", $file);
+}
+
+function expire_session() {
+    if (is_user_logged_in()) {
+        if (!$_SESSION['REMEMBER_ME']) {
+            if ((time() - $_SESSION['LAST_ACTIVITY'] > 5 * 60)) {
+                // last request was more than 30 minutes ago
+                unset($_SESSION['LAST_ACTIVITY']);     // unset $_SESSION variable for the run-time 
+                //session_destroy();   // destroy session data in storage
+                wp_logout();
+                wp_safe_redirect(home_url('/'));
+                exit;
+            } else {
+                $_SESSION['LAST_ACTIVITY'] = time(); // update last activity time stamp
+            }
+        }
+    }
+}
+
+/* This function find all user of unsatisfied package and send mail to them when a new transport offer is added and it can satisfied him. The mail is send
+  even if this user have his field <<receive-notification>> egal to yes */
+
+function gpdeal_send_notification_unsatisfied_package_user($post_ID) {
+    $type_package = wp_get_post_terms($post_ID, 'type_package', array("fields" => "ids"));
+    $start_country = get_post_meta($post_ID, 'departure-country-transport-offer', true);
+    $start_state = get_post_meta($post_ID, 'departure-state-transport-offer', true);
+    $start_city = get_post_meta($post_ID, 'departure-city-transport-offer', true);
+    $start_date = date('d-m-Y', strtotime(get_post_meta($post_ID, 'date-of-departure-transport-offer', true)));
+    $destination_country = get_post_meta($post_ID, 'destination-country-transport-offer', true);
+    $destination_state = get_post_meta($post_ID, 'destination-state-transport-offer', true);
+    $destination_city = get_post_meta($post_ID, 'destination-city-transport-offer', true);
+    $destination_date = date('d-m-Y', strtotime(get_post_meta($post_ID, 'arrival-date-transport-offer', true)));
+
+    $search_data = array(
+        "type_package" => $type_package,
+        "start_country" => $start_country,
+        "start_state" => $start_state,
+        "start_city" => $start_city,
+        "start_date" => $start_date,
+        "destination_country" => $destination_country,
+        "destination_state" => $destination_state,
+        "destination_city" => $destination_city,
+        "destination_date" => $destination_date
+    );
+
+    $packages_query = new WP_Query(getWPQueryArgsForUnsatifiedSendPackages($search_data));
+    $exclude_ids = array();
+    if ($packages_query->have_posts()) {
+        $packages = $packages_query->posts;
+        foreach ($packages as $package) {
+            $exclude_ids[] = $package->ID;
+            $user = get_user_by('id', get_post_field('post_author', $package->ID) == "yes");
+            if (get_user_meta($user->ID, 'receive-notifications', true)) {
+                $headers[] = 'MIME-Version: 1.0';
+                $headers[] = 'Content-Type: text/html; charset=UTF-8';
+                $headers[] = 'From: GPDEAL INFOS <infos@gpdeal.com>';
+                //$headers[] = 'Bcc:<apatchong@gmail.com>';
+                $headers[] = 'Bcc:<erictonyelissouck@yahoo.fr>';
+
+                $subject = "Global Parcel Deal - Nouvelle offre de transport";
+
+                $gp_username = $user->first_name != "" ? $user->first_name . " " . $user->last_name : $user->last_name;
+                $civility = get_user_meta($user->ID, "gender", true);
+                ob_start();
+                ?>
+
+                <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;">Bonjour<?php if ($civility != ""): ?> <?php echo $civility; ?> <?php endif ?><?php echo $gp_username; ?>, </p>
+                <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;">Nous avons une offre de transport valide correspondant à votre expédition N°<a href="<?php echo get_permalink($package->ID); ?>" ><?php echo get_post_field('post_title', $package->ID) ?></a> </p>
+                <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;">
+                    <a href="<?php echo esc_url(add_query_arg(array('package_id' => $package->ID), get_permalink($post_ID))); ?>" >cliquez ici</a> pour voir les détails de l'offre
+                </p>
+                <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;">Vous remerciant de votre confiance, nous restons à votre disposition pour toute information complémentaire.</p>
+                <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;">Cordialement,</p>
+                <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;">L'équipe Global Parcel Deal</p>
+                <p><a href="<?php echo home_url('/'); ?>"><img src="<?php echo get_template_directory_uri() ?>/assets/images/logo_gpdeal.png" style="width: 115px;"></a></p>
+                <p style="font-style: italic; color: rgb(0,153,51); font-size: 7pt;">Pensez à l'environnement avant d'imprimer ce message</p>
+
+                <?php
+                $body = ob_get_contents();
+                ob_end_clean();
+                wp_mail($user->data->user_email, $subject, $body, $headers);
+            }
+        }
+    }
+}
+
+//This function update transport offer status and set it to 2 when the transport offer is expired (limit date is passed)
+function updateStatusAllExpiredOffers() {
+    $today = date('Y-m-d H:i:s', strtotime('today'));
+    $transport_offers = new WP_Query(array('post_type' => 'transport-offer', 'post_per_page' => -1, "post_status" => 'publish', 'meta_query' => array('relation' => 'AND', array('relation' => 'OR', array('key' => 'transport-status', 'value' => 1, 'compare' => '='), array('key' => 'transport-status', 'value' => -1, 'compare' => '='), array('key' => 'transport-status', 'value' => 3, 'compare' => '=')), array('key' => 'deadline-of-proposition-transport-offer', 'value' => $today, 'compare' => '<', 'type' => 'DATE'))));
+    $i = 0;
+    if ($transport_offers->have_posts()) {
+        while ($transport_offers->have_posts()) {
+            $transport_offers->the_post();
+            update_post_meta(get_the_ID(), 'transport-status', 2);
+            $i++;
+        }
+        wp_reset_postdata();
+    }
+    return $i . " transport offers expired had been updated";
+}
+
+//This function update transport offer status and set it to 4 when the transport offer is ended (destination date is passed)
+function updateStatusAllEndedOffers() {
+    $today = date('Y-m-d H:i:s', strtotime('today'));
+    $transport_offers = new WP_Query(array('post_type' => 'transport-offer', 'post_per_page' => -1, "post_status" => 'publish', 'meta_query' => array('relation' => 'AND', array('relation' => 'OR', array('key' => 'transport-status', 'value' => 2, 'compare' => '='), array('key' => 'transport-status', 'value' => 3, 'compare' => '=')), array('key' => 'arrival-date-transport-offer', 'value' => $today, 'compare' => '<', 'type' => 'DATE'))));
+    $i = 0;
+    if ($transport_offers->have_posts()) {
+        while ($transport_offers->have_posts()) {
+            $transport_offers->the_post();
+            update_post_meta(get_the_ID(), 'transport-status', 4);
+            $i++;
+        }
+        wp_reset_postdata();
+    }
+    return $i . " transport offers ended had been updated";
 }
