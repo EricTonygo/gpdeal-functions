@@ -122,7 +122,7 @@ function childtheme_formats() {
 }
 
 function my_theme_supports() {
-    woocommerce_support();
+    //woocommerce_support();
     childtheme_formats();
     remove_theme_supports();
     text_domain_setup();
@@ -131,6 +131,56 @@ function my_theme_supports() {
 function remove_theme_supports() {
     //remove_post_type_support('package', 'editor');
     //remove_post_type_support('transport-offer', 'editor');
+    /* ----------------------------------------------------------------------------- */
+    //Prevent wordpress to display version of wordpress installation
+    /* ----------------------------------------------------------------------------- */
+    remove_action('wp_head', 'wp_generator');
+}
+
+add_action('show_user_profile', 'my_show_extra_profile_fields');
+add_action('edit_user_profile', 'my_show_extra_profile_fields');
+
+function my_show_extra_profile_fields($user) {
+    ?>
+    <?php if (is_super_admin(get_current_user_id())): ?>
+        <h3><?php _e("Identity information", "gpdealdomain"); ?></h3>
+        <table class="form-table">
+            <tr>
+                <th><label for="identity_status"><?php _e("Link of identity file", "gpdealdomain"); ?></label></th>
+                <td>
+                    <?php $identity_file_id = get_the_author_meta('identity-file-ID', $user->ID);
+                    if ($identity_file_id):
+                        ?>
+                        <a  href="<?php echo wp_get_attachment_url($identity_file_id); ?>" target="_blank"><?php echo basename(get_attached_file($identity_file_id)); ?> </a>
+                    <?php else: ?>
+                        <span style="color: red"><?php _e("No identity file", "gpdealdomain") ?></span>
+        <?php endif ?>
+                </td>
+            </tr>
+            <tr>
+                <th><label for="identity_status"><?php _e("Identity status", "gpdealdomain"); ?></label></th>
+                <td>
+                    <select name="identity_status">
+                        <option value="">Select an identity status</option>
+                        <option value="1" <?php if (get_the_author_meta('identity-status', $user->ID) == 1): ?> selected="selected"<?php endif ?>><?php _e("Verification of Identity in Progress", "gpdealdomain"); ?></option>
+                        <option value="2" <?php if (get_the_author_meta('identity-status', $user->ID) == 2): ?> selected="selected"<?php endif ?>><?php _e("Not identified", "gpdealdomain"); ?></option>
+                        <option value="3" <?php if (get_the_author_meta('identity-status', $user->ID) == 3): ?> selected="selected"<?php endif ?>><?php _e("Identified", "gpdealdomain"); ?></option>
+                    </select>
+                </td>
+            </tr>
+        </table>
+    <?php endif ?>
+    <?php
+}
+
+add_action('personal_options_update', 'my_save_extra_profile_fields');
+add_action('edit_user_profile_update', 'my_save_extra_profile_fields');
+
+function my_save_extra_profile_fields($user_id) {
+    if (!current_user_can('edit_user', $user_id))
+        return false;
+    /* Copy and paste this line for additional fields. Make sure to change 'twitter' to the field ID. */
+    update_user_meta($user_id, 'identity-status', intval($_POST['identity_status']));
 }
 
 //Add additional role customer for every user because we want to use it in woocommerce
@@ -138,7 +188,7 @@ add_action('user_register', 'custom_registration_user_function', 10, 1);
 
 function custom_registration_user_function($user_id) {
     add_secondary_role($user_id);
-    gpdeal_send_activate_link($user_id);
+    //gpdeal_send_activate_link($user_id);
 }
 
 function add_secondary_role($user_id) {
@@ -150,9 +200,10 @@ function add_secondary_role($user_id) {
 function gpdeal_send_activate_link($user_id) {
     $hash = sha1(uniqid(mt_rand(), true));
     update_user_meta($user_id, 'hash', $hash);
+    update_user_meta($user_id, 'activate', 1);
     $user_data = get_userdata($user_id);
     $headers[] = 'Content-Type: text/html; charset=UTF-8';
-    $headers[] = 'From: GPDEAL INFOS <infos@gpdeal.com>';
+    $headers[] = 'From: GPDEAL <infos@gpdeal.com>';
     $headers[] = 'Bcc:<erictonyelissouck@yahoo.fr>';
 
     $subject = "Global Parcel Deal - " . __("ACTIVATION OF ACCOUNT", "gpdealdomain");
@@ -162,7 +213,7 @@ function gpdeal_send_activate_link($user_id) {
     ob_start();
     ?>
 
-    <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Welcome in", "gpdealdomain"); ?> Gobal Parcel Deal<?php if ($civility != ""): ?> <?php echo __($civility, "gpdealdomain"); ?> <?php endif ?><?php echo $gp_username; ?>, </p>
+    <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Welcome in", "gpdealdomain"); ?> Gobal Parcel Deal<?php if ($civility != ""): ?> <?php echo __($civility, "gpdealdomain"); ?><?php endif ?> <?php echo $gp_username; ?>, </p>
 
     <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Please clik on", "gpdealdomain"); ?> <a href="<?php echo esc_url(add_query_arg(array('id' => $user_data->user_login, 'key' => get_user_meta($user_data->ID, "hash", true)), get_permalink(get_page_by_path(__('activate-your-account', 'gpdealdomain'))))); ?>"><?php _e("this link", "gpdealdomain"); ?></a> <?php _e("to activate your account", "gpdealdomain"); ?>.</p><br>
 
@@ -175,12 +226,11 @@ function gpdeal_send_activate_link($user_id) {
     wp_mail($user_data->user_email, $subject, $body, $headers);
 }
 
-add_action('profile_update', 'custom_profile_update_function', 10, 2);
-
-function custom_profile_update_function($user_id, $old_user_data) {
-    gpdeal_send_activate_link($user_id);
-}
-
+//add_action('profile_update', 'custom_profile_update_function', 10, 2);
+//
+//function custom_profile_update_function($user_id, $old_user_data) {
+//    gpdeal_send_activate_link($user_id);
+//}
 //Check whether a user has a specifique role
 function get_user_roles_by_user_id($user_id) {
     $user = get_userdata($user_id);
@@ -193,9 +243,9 @@ function get_user_role_by_user_id($user_id) {
     if (in_array('particular', $roles)) {
         return __('Particular', 'gpdealdomain');
     } elseif (in_array('professional', $roles)) {
-        return __('Professionnal', 'gpdealdomain');
+        return __('Professional', 'gpdealdomain');
     } elseif (in_array('enterprise', $roles)) {
-        return __('Enterprise', 'gpdealdomain');
+        return __('Professional', 'gpdealdomain');
     } else {
         return "";
     }
@@ -208,46 +258,13 @@ function get_role_of_user($user_id) {
 }
 
 /* * ****************************************Customize user registration form ****************************************************** */
-//1. Add a new form element...
-add_action('register_form', 'myplugin_register_form');
 
-function myplugin_register_form() {
-    toto();
-    $first_name = (!empty($_POST['first_name']) ) ? trim($_POST['first_name']) : '';
-    ?>
-    <p>
-        <label for="first_name"><?php _e('First Name', 'mydomain') ?><br />
-            <input type="text" name="first_name" id="first_name" class="input" value="<?php echo esc_att(wp_unslash($first_name)); ?>" size="25" /></label>
-    </p>
-    <?php
-}
-
-//2. Add validation. In this case, we make sure first_name is required.
-add_filter('registration_errors', 'myplugin_registration_errors', 10, 3);
-
-function myplugin_registration_errors($errors, $sanitized_user_login, $user_email) {
-
-    if (empty($_POST['first_name']) || !empty($_POST['first_name']) && trim($_POST['first_name']) == '') {
-        $errors->add('first_name_error', __('<strong>ERROR</strong>: You must include a first name.', 'mydomain'));
-    }
-
-    return $errors;
-}
-
-//3. Finally, save our extra registration user meta.
-add_action('user_register', 'myplugin_user_register');
-
-function myplugin_user_register($user_id) {
-    if (!empty($_POST['first_name'])) {
-        update_user_meta($user_id, 'first_name', trim($_POST['first_name']));
-    }
-}
 
 /* * ******************************************************************************************************************************** */
 
 function post_type_transport_offer_init() {
     $labels = array(
-        'name' => _x('Transport offers', 'post type general name', 'gpdealdomain'),
+        'name' => __('Transport offers', 'post type general name', 'gpdealdomain'),
         'singular_name' => _x('Transport offer', 'post type singular name', 'gpdealdomain'),
         'menu_name' => _x('Transport offers', 'admin menu', 'gpdealdomain'),
         'name_admin_bar' => _x('Transport offer', 'add new on admin bar', 'gpdealdomain'),
@@ -570,7 +587,7 @@ function post_type_evaluation_init() {
 function my_custom_init() {
     add_role('particular', __('Particular', 'gpdealDomain'), array('read' => true, 'publish_posts' => true, 'edit_posts' => true));
     add_role('professional', __('Professional', 'gpdealDomain'), array('read' => true, 'publish_posts' => true, 'edit_posts' => true));
-    add_role('enterprise', __('Enterprise', 'gpdealDomain'), array('read' => true, 'publish_posts' => true, 'edit_posts' => true));
+    //add_role('enterprise', __('Enterprise', 'gpdealDomain'), array('read' => true, 'publish_posts' => true, 'edit_posts' => true));
     post_type_transport_offer_init();
     post_type_package_init();
     post_type_question_init();
@@ -698,147 +715,26 @@ function register_user() {
                 return wp_send_json_success($json);
             }
         }
-    } elseif (isset($_POST['g-recaptcha-response-register'])) {
+    } elseif (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['g-recaptcha-response-register'])) {
 //        if (!verify_use_grecaptcha($_POST['g-recaptcha-response-register'])) {
 //            // What happens when the CAPTCHA was entered incorrectly
 //            $_SESSION['error_message'] = "Nous n'avons pas pu verifier votre code de sécurité. Verifiez le puis essayez à nouveau :".$_POST['g-recaptcha-response-register'];
 //        } else {
         $role = removeslashes(esc_attr(trim($_POST['role'])));
-        if ($role == "particular") {
-            $user_login = removeslashes(esc_attr(trim($_POST['username'])));
-            $user_pass = esc_attr($_POST['password']);
-            $user_email = removeslashes(esc_attr(trim($_POST['email'])));
-            $first_name = removeslashes(esc_attr(trim($_POST['first_name'])));
-            $last_name = removeslashes(esc_attr(trim($_POST['last_name'])));
-            $birthdate = removeslashes(esc_attr(trim($_POST['birthdate'])));
-            $gender = removeslashes(esc_attr(trim($_POST['gender'])));
-            $number_street = removeslashes(esc_attr(trim($_POST['number_street'])));
-            $complement_address = removeslashes(esc_attr(trim($_POST['complement_address'])));
-            $locality = removeslashes(esc_attr(trim($_POST['locality'])));
-            $country_region_city = getCountryRegionCityInformations($locality);
-            $mobile_phone_number = removeslashes(esc_attr(trim($_POST['mobile_phone_number'])));
-            $test_question_ID = removeslashes(esc_attr(trim($_POST['test_question'])));
-            $answer_test_question = removeslashes(esc_attr(trim($_POST['answer_test_question'])));
-            $receive_notifications = removeslashes(esc_attr(trim($_POST['receive_notifications'])));
-            $profile_picture_id = removeslashes(esc_attr(trim($_POST['profile_picture_id'])));
-            $identity_file_id = removeslashes(esc_attr(trim($_POST['identity_file_id'])));
-
-            $new_user_data = array(
-                'user_login' => $user_login,
-                'user_pass' => $user_pass,
-                'user_email' => $user_email,
-                'role' => $role,
-                'first_name' => $first_name,
-                'last_name' => $last_name
-            );
-
-            $user_id = wp_insert_user($new_user_data);
-            if (!is_wp_error($user_id)) {
-                update_user_meta($user_id, 'activate', 1);
-                update_user_meta($user_id, 'plain-text-password', $user_pass);
-                update_user_meta($user_id, 'birthdate', date('Y-m-d H:i:s', strtotime(str_replace('/', '-', $birthdate))));
-                update_user_meta($user_id, 'gender', $gender);
-                update_user_meta($user_id, 'number-street', $number_street);
-                update_user_meta($user_id, 'complement-address', $complement_address);
-                update_user_meta($user_id, 'country', $country_region_city['country']);
-                update_user_meta($user_id, 'region-province-state', $country_region_city['region']);
-                update_user_meta($user_id, 'commune-city-locality', $country_region_city['city']);
-                update_user_meta($user_id, 'mobile-phone-number', $mobile_phone_number);
-                update_user_meta($user_id, 'test-question-ID', $test_question_ID);
-                update_user_meta($user_id, 'answer-test-question', $answer_test_question);
-                update_user_meta($user_id, 'identity-status', 1);
-                update_user_meta($user_id, 'profile-picture-ID', $profile_picture_id);
-                update_user_meta($user_id, 'identity-file-ID', $identity_file_id);
-                if ($receive_notifications && $receive_notifications == 'on') {
-                    update_user_meta($user_id, 'receive-notifications', 'yes');
-                } else {
-                    update_user_meta($user_id, 'receive-notifications', 'no');
-                }
-            }
-        } elseif ($role == "professional" || $role == "enterprise") {
-            $user_login_pro = removeslashes(esc_attr(trim($_POST['company_name'])));
-            $user_pass_pro = esc_attr($_POST['password_pro']);
-            $user_email_pro = removeslashes(esc_attr(trim($_POST['email_pro'])));
-            $civility_represntative1_pro = removeslashes(esc_attr(trim($_POST['civility_representative1'])));
-            $first_name_representative1_pro = removeslashes(esc_attr(trim($_POST['first_name_representative1'])));
-            $last_name_representative1_pro = removeslashes(esc_attr(trim($_POST['last_name_representative1'])));
-            $email_representative1_pro = removeslashes(esc_attr(trim($_POST['email_representative1'])));
-            $function_representative1_pro = removeslashes(esc_attr(trim($_POST['function_representative1'])));
-            $mobile_phone_number_representative1_pro = removeslashes(esc_attr(trim($_POST['mobile_phone_number_representative1'])));
-            $civility_represntative2_pro = removeslashes(esc_attr(trim($_POST['civility_represntative2'])));
-            $first_name_representative2_pro = removeslashes(esc_attr(trim($_POST['first_name_representative2'])));
-            $last_name_representative2_pro = removeslashes(esc_attr(trim($_POST['last_name_representative2'])));
-            $email_representative2_pro = removeslashes(esc_attr(trim($_POST['email_representative2'])));
-            $function_representative2_pro = removeslashes(esc_attr(trim($_POST['function_representative2'])));
-            $mobile_phone_number_representative2_pro = removeslashes(esc_attr(trim($_POST['mobile_phone_number_representative2'])));
-            $company_name_pro = removeslashes(esc_attr(trim($_POST['company_name'])));
-            $company_legal_form_pro = removeslashes(esc_attr(trim($_POST['company_legal_form'])));
-            $company_identity_number_pro = removeslashes(esc_attr(trim($_POST['company_identity_number'])));
-            $company_identity_tva_number_pro = removeslashes(esc_attr(trim($_POST['company_identity_tva_number'])));
-            $number_street_pro = removeslashes(esc_attr(trim($_POST['number_street'])));
-            $complement_address_pro = removeslashes(esc_attr(trim($_POST['complement_address'])));
-            $locality_pro = removeslashes(esc_attr(trim($_POST['locality_pro'])));
-            $country_region_city_pro = getCountryRegionCityInformations($locality_pro);
-            $postal_code_pro = removeslashes(esc_attr(trim($_POST['postal_code'])));
-            $home_phone_number_pro = removeslashes(esc_attr(trim($_POST['home_phone_number'])));
-            $test_question_ID_pro = removeslashes(esc_attr(trim($_POST['test_question_pro'])));
-            $answer_test_question_pro = removeslashes(esc_attr(trim($_POST['answer_test_question_pro'])));
-            $receive_notifications_pro = removeslashes(esc_attr(trim($_POST['receive_notifications'])));
-            $company_logo_id = removeslashes(esc_attr(trim($_POST['company_logo_id'])));
-            $identity_file_pro_id = removeslashes(esc_attr(trim($_POST['identity_file_pro_id'])));
-
-            $new_user_data = array(
-                'user_login' => $user_login_pro,
-                'user_pass' => $user_pass_pro,
-                'user_email' => $user_email_pro,
-                'role' => $role,
-                'first_name' => "",
-                'last_name' => $company_name_pro
-            );
-
-            $user_id = wp_insert_user($new_user_data);
-
-            if (!is_wp_error($user_id)) {
-                update_user_meta($user_id, 'activate', 1);
-                update_user_meta($user_id, 'plain-text-password', $user_pass_pro);
-                update_user_meta($user_id, 'company-name', $company_name_pro);
-                update_user_meta($user_id, 'company-legal-form', $company_legal_form_pro);
-                update_user_meta($user_id, 'company-identity-number', $company_identity_number_pro);
-                update_user_meta($user_id, 'company-identity-tva-number', $company_identity_tva_number_pro);
-                update_user_meta($user_id, 'number-street', $number_street_pro);
-                update_user_meta($user_id, 'complement-address', $complement_address_pro);
-                update_user_meta($user_id, 'country', $country_region_city_pro['country']);
-                update_user_meta($user_id, 'region-province-state', $country_region_city_pro['region']);
-                update_user_meta($user_id, 'commune-city-locality', $country_region_city_pro['city']);
-                update_user_meta($user_id, 'postal-code', $postal_code_pro);
-                update_user_meta($user_id, 'home-phone-number', $home_phone_number_pro);
-                update_user_meta($user_id, 'civility-representative1', $civility_represntative1_pro);
-                update_user_meta($user_id, 'first-name-representative1', $first_name_representative1_pro);
-                update_user_meta($user_id, 'last-name-representative1', $last_name_representative1_pro);
-                update_user_meta($user_id, 'company-function-representative1', $function_representative1_pro);
-                update_user_meta($user_id, 'mobile-phone-number-representative1', $mobile_phone_number_representative1_pro);
-                update_user_meta($user_id, 'email-representative1', $email_representative1_pro);
-                update_user_meta($user_id, 'civility-representative2', $civility_represntative2_pro);
-                update_user_meta($user_id, 'first-name-representative2', $first_name_representative2_pro);
-                update_user_meta($user_id, 'last-name-representative2', $last_name_representative2_pro);
-                update_user_meta($user_id, 'company-function-representative2', $function_representative2_pro);
-                update_user_meta($user_id, 'mobile-phone-number-representative1', $mobile_phone_number_representative2_pro);
-                update_user_meta($user_id, 'email-representative2', $email_representative2_pro);
-                update_user_meta($user_id, 'test-question-ID', $test_question_ID_pro);
-                update_user_meta($user_id, 'answer-test-question', $answer_test_question_pro);
-                update_user_meta($user_id, 'identity-status', 1);
-                update_user_meta($user_id, 'company-logo-ID', $company_logo_id);
-                update_user_meta($user_id, 'identity-file-ID', $identity_file_pro_id);
-                if ($receive_notifications_pro && $receive_notifications_pro == 'on') {
-                    update_user_meta($user_id, 'receive-notifications', 'yes');
-                } else {
-                    update_user_meta($user_id, 'receive-notifications', 'no');
-                }
-            }
-        }
-
+        $user_login = removeslashes(esc_attr(trim($_POST['username'])));
+        $user_pass = esc_attr($_POST['password']);
+        $user_email = removeslashes(esc_attr(trim($_POST['email'])));
+        $new_user_data = array(
+            'user_login' => $user_login,
+            'user_pass' => $user_pass,
+            'user_email' => $user_email,
+            'role' => $role
+        );
+        $user_id = wp_insert_user($new_user_data);
+        update_user_meta($user_id, 'registration-completed', 1);
         if (!is_wp_error($user_id)) {
-            $_SESSION['success_registration_message']= __("Your account has been successfully created. The activation link was sent to you by e-mail to the email address of your account", "gpdealdomain");
+            gpdeal_send_activate_link($user_id);
+            $_SESSION['success_registration_message'] = __("Your account has been successfully created. The activation link was sent to you by e-mail to the email address of your account", "gpdealdomain");
             wp_safe_redirect(get_permalink(get_page_by_path(__("confirmation-registration", 'gpdealdomain'))));
             exit;
         } else {
@@ -870,20 +766,20 @@ function update_user($user_id) {
                 return wp_send_json_success($json);
             }
         }
-    } else {
+    } elseif (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $role = removeslashes(esc_attr(trim($_POST['role'])));
         if ($role == "particular") {
             $user_login = removeslashes(esc_attr(trim($_POST['username'])));
-            //$user_pass = removeslashes(esc_attr($_POST['password']);
             $user_email = removeslashes(esc_attr(trim($_POST['email'])));
             $first_name = removeslashes(esc_attr(trim($_POST['first_name'])));
             $last_name = removeslashes(esc_attr(trim($_POST['last_name'])));
-            $birthdate = removeslashes(esc_attr(trim($_POST['birthdate'])));
             $gender = removeslashes(esc_attr(trim($_POST['gender'])));
             $number_street = removeslashes(esc_attr(trim($_POST['number_street'])));
             $complement_address = removeslashes(esc_attr(trim($_POST['complement_address'])));
             $locality = removeslashes(esc_attr(trim($_POST['locality'])));
+            $postal_code = removeslashes(esc_attr(trim($_POST['postal_code'])));
             $country_region_city = getCountryRegionCityInformations($locality);
+            $mobile_phone_country_code = removeslashes(esc_attr(trim($_POST['mobile_phone_country_code'])));
             $mobile_phone_number = removeslashes(esc_attr(trim($_POST['mobile_phone_number'])));
             $test_question_ID = removeslashes(esc_attr(trim($_POST['test_question'])));
             $answer_test_question = removeslashes(esc_attr(trim($_POST['answer_test_question'])));
@@ -893,7 +789,7 @@ function update_user($user_id) {
 
             $update_user_data = array(
                 'ID' => $user_id,
-                'user_login' => $user_login,
+                //'user_login' => $user_login,
                 //'user_pass' => $user_pass,
                 'user_email' => $user_email,
                 'role' => $role,
@@ -902,15 +798,15 @@ function update_user($user_id) {
             );
 
             $user_id = wp_update_user($update_user_data);
-            //update_user_meta($user_id, 'plain-text-password', $user_pass);
             if (!is_wp_error($user_id)) {
-                update_user_meta($user_id, 'birthdate', date('Y-m-d H:i:s', strtotime(str_replace('/', '.', $birthdate))));
                 update_user_meta($user_id, 'gender', $gender);
+                update_user_meta($user_id, 'postal-code', $postal_code);
                 update_user_meta($user_id, 'number-street', $number_street);
                 update_user_meta($user_id, 'complement-address', $complement_address);
                 update_user_meta($user_id, 'country', $country_region_city['country']);
                 update_user_meta($user_id, 'region-province-state', $country_region_city['region']);
                 update_user_meta($user_id, 'commune-city-locality', $country_region_city['city']);
+                update_user_meta($user_id, 'mobile-phone-country-code', $mobile_phone_country_code);
                 update_user_meta($user_id, 'mobile-phone-number', $mobile_phone_number);
                 update_user_meta($user_id, 'test-question-ID', $test_question_ID);
                 update_user_meta($user_id, 'answer-test-question', $answer_test_question);
@@ -921,25 +817,26 @@ function update_user($user_id) {
                 } else {
                     update_user_meta($user_id, 'receive-notifications', 'no');
                 }
+                update_user_meta($user_id, 'registration-completed', 2);
             }
         } elseif ($role == "professional" || $role == "enterprise") {
             $user_login_pro = removeslashes(esc_attr(trim($_POST['company_name'])));
-            //$user_pass_pro = removeslashes(esc_attr($_POST['password']);
             $user_email_pro = removeslashes(esc_attr(trim($_POST['email_pro'])));
             $civility_represntative1_pro = removeslashes(esc_attr(trim($_POST['civility_representative1'])));
             $first_name_representative1_pro = removeslashes(esc_attr(trim($_POST['first_name_representative1'])));
             $last_name_representative1_pro = removeslashes(esc_attr(trim($_POST['last_name_representative1'])));
             $email_representative1_pro = removeslashes(esc_attr(trim($_POST['email_representative1'])));
             $function_representative1_pro = removeslashes(esc_attr(trim($_POST['function_representative1'])));
+            $mobile_phone_country_code_representative1 = removeslashes(esc_attr(trim($_POST['mobile_phone_country_code_representative1'])));
             $mobile_phone_number_representative1_pro = removeslashes(esc_attr(trim($_POST['mobile_phone_number_representative1'])));
             $civility_represntative2_pro = removeslashes(esc_attr(trim($_POST['civility_represntative2'])));
             $first_name_representative2_pro = removeslashes(esc_attr(trim($_POST['first_name_representative2'])));
             $last_name_representative2_pro = removeslashes(esc_attr(trim($_POST['last_name_representative2'])));
             $email_representative2_pro = removeslashes(esc_attr(trim($_POST['email_representative2'])));
             $function_representative2_pro = removeslashes(esc_attr(trim($_POST['function_representative2'])));
+            $mobile_phone_country_code_representative2 = removeslashes(esc_attr(trim($_POST['mobile_phone_country_code_representative2'])));
             $mobile_phone_number_representative2_pro = removeslashes(esc_attr(trim($_POST['mobile_phone_number_representative2'])));
             $company_name_pro = removeslashes(esc_attr(trim($_POST['company_name'])));
-            $company_legal_form_pro = removeslashes(esc_attr(trim($_POST['company_legal_form'])));
             $company_identity_number_pro = removeslashes(esc_attr(trim($_POST['company_identity_number'])));
             $company_identity_tva_number_pro = removeslashes(esc_attr(trim($_POST['company_identity_tva_number'])));
             $number_street_pro = removeslashes(esc_attr(trim($_POST['number_street'])));
@@ -947,6 +844,7 @@ function update_user($user_id) {
             $locality_pro = removeslashes(esc_attr(trim($_POST['locality_pro'])));
             $country_region_city_pro = getCountryRegionCityInformations($locality_pro);
             $postal_code_pro = removeslashes(esc_attr(trim($_POST['postal_code'])));
+            $home_phone_country_code = removeslashes(esc_attr(trim($_POST['home_phone_country_code'])));
             $home_phone_number_pro = removeslashes(esc_attr(trim($_POST['home_phone_number'])));
             $test_question_ID_pro = removeslashes(esc_attr(trim($_POST['test_question_pro'])));
             $answer_test_question_pro = removeslashes(esc_attr(trim($_POST['answer_test_question_pro'])));
@@ -956,7 +854,7 @@ function update_user($user_id) {
 
             $update_user_data = array(
                 'ID' => $user_id,
-                'user_login' => $user_login_pro,
+                //'user_login' => $user_login_pro,
                 //'user_pass' => $user_pass_pro,
                 'user_email' => $user_email_pro,
                 'role' => $role,
@@ -965,7 +863,6 @@ function update_user($user_id) {
             );
 
             $user_id = wp_update_user($update_user_data);
-            //update_user_meta($user_id, 'plain-text-password', $user_pass_pro);
             if (!is_wp_error($user_id)) {
                 if (!empty($_FILES['company_logo'])) {
                     $logo_pro = $_FILES['company_logo'];
@@ -982,7 +879,6 @@ function update_user($user_id) {
                     update_user_meta($user_id, 'company-attachements-IDs', $company_attachements_ids);
                 }
                 update_user_meta($user_id, 'company-name', $company_name_pro);
-                update_user_meta($user_id, 'company-legal-form', $company_legal_form_pro);
                 update_user_meta($user_id, 'company-identity-number', $company_identity_number_pro);
                 update_user_meta($user_id, 'company-identity-tva-number', $company_identity_tva_number_pro);
                 update_user_meta($user_id, 'number-street', $number_street_pro);
@@ -991,18 +887,21 @@ function update_user($user_id) {
                 update_user_meta($user_id, 'region-province-state', $country_region_city_pro['region']);
                 update_user_meta($user_id, 'commune-city-locality', $country_region_city_pro['city']);
                 update_user_meta($user_id, 'postal-code', $postal_code_pro);
+                update_user_meta($user_id, 'home-phone-country-code', $home_phone_country_code);
                 update_user_meta($user_id, 'home-phone-number', $home_phone_number_pro);
                 update_user_meta($user_id, 'civility-representative1', $civility_represntative1_pro);
                 update_user_meta($user_id, 'first-name-representative1', $first_name_representative1_pro);
                 update_user_meta($user_id, 'last-name-representative1', $last_name_representative1_pro);
                 update_user_meta($user_id, 'company-function-representative1', $function_representative1_pro);
+                update_user_meta($user_id, 'mobile-phone-country-code-representative1', $mobile_phone_country_code_representative1);
                 update_user_meta($user_id, 'mobile-phone-number-representative1', $mobile_phone_number_representative1_pro);
                 update_user_meta($user_id, 'email-representative1', $email_representative1_pro);
                 update_user_meta($user_id, 'civility-representative2', $civility_represntative2_pro);
                 update_user_meta($user_id, 'first-name-representative2', $first_name_representative2_pro);
                 update_user_meta($user_id, 'last-name-representative2', $last_name_representative2_pro);
                 update_user_meta($user_id, 'company-function-representative2', $function_representative2_pro);
-                update_user_meta($user_id, 'mobile-phone-number-representative1', $mobile_phone_number_representative2_pro);
+                update_user_meta($user_id, 'mobile-phone-country-code-representative2', $mobile_phone_country_code_representative2);
+                update_user_meta($user_id, 'mobile-phone-number-representative2', $mobile_phone_number_representative2_pro);
                 update_user_meta($user_id, 'email-representative2', $email_representative2_pro);
                 update_user_meta($user_id, 'test-question-ID', $test_question_ID_pro);
                 update_user_meta($user_id, 'answer-test-question', $answer_test_question_pro);
@@ -1013,6 +912,7 @@ function update_user($user_id) {
                 } else {
                     update_user_meta($user_id, 'receive-notifications', 'no');
                 }
+                update_user_meta($user_id, 'registration-completed', 2);
             }
         }
 
@@ -1023,69 +923,52 @@ function update_user($user_id) {
             // set the WP login cookie
             $secure_cookie = is_ssl() ? true : false;
             wp_set_auth_cookie($user_id, true, $secure_cookie);
-            wp_safe_redirect(get_permalink(get_page_by_path(__('my-account', 'gpdealdomain'))));
+            //gpdeal_send_activate_link($user_id);
+            wp_safe_redirect(get_permalink(get_page_by_path(__('my-account', 'gpdealdomain') . '/' . __('profile', 'gpdealdomain'))));
             exit;
         } else {
             wp_safe_redirect(get_permalink(get_page_by_path(__('registration', 'gpdealdomain'))));
             exit;
         }
+    } else {
+        wp_safe_redirect(get_permalink(get_page_by_path(__('my-account', 'gpdealdomain') . '/' . __('profile', 'gpdealdomain'))));
+        exit;
     }
 }
 
 //Function for getting forgot password of user
-function get_password() {
-    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-        $user_email = removeslashes(esc_attr(trim($_POST['email'])));
-        $test_question_ID = removeslashes(esc_attr(trim($_POST['test_question'])));
-        $answer_test_question = removeslashes(esc_attr(trim($_POST['answer_test_question'])));
-        $unique_user_email = get_user_by('email', $user_email);
-        if ($unique_user_email != null) {
-            $user_id = $unique_user_email->ID;
-            $test_question_ID_user = get_user_meta($user_id, 'test-question-ID', true);
-            $answer_test_question_user = get_user_meta($user_id, 'answer-test-question', true);
-            if ($test_question_ID == $test_question_ID_user && $answer_test_question == $answer_test_question_user) {
-                $json = array("message" => "Correct information");
-                return wp_send_json_success($json);
-            } else {
-                $json = array("message" => "The information entered is incorrect (at least one piece of information is erroneous, incomplete or missing). Please try again.");
-                return wp_send_json_error($json);
-            }
+function get_password($user_email) {
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest' && $user_email != "") {
+        $user = get_user_by('email', $user_email);
+        if ($user != null) {
+            $json = array("message" => __("Correct information", "gpdealdomain"));
+            return wp_send_json_success($json);
         } else {
-            $json = array("message" => "Unknow user");
+            $json = array("message" => __("Unknown user", "gpdealdomain"));
             return wp_send_json_error($json);
         }
-    } else {
-        $user_email = removeslashes(esc_attr(trim($_POST['email'])));
-        $unique_user_email = get_user_by('email', $user_email);
-        $plain_text_password = get_user_meta($unique_user_email->ID, 'plain-text-password', true);
-
+    } elseif (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST' && $user_email != "") {
+        $user = get_user_by('email', $user_email);
+        $hash_reset_password = sha1(uniqid(mt_rand(), true)) . '' . sha1(uniqid(mt_rand(), true)) . '' . sha1(uniqid(mt_rand(), true));
+        update_user_meta($user->ID, 'hash-reset-password', $hash_reset_password);
+        update_user_meta($user->ID, 'last-reset-password-time', time());
         $headers[] = 'MIME-Version: 1.0';
         $headers[] = 'Content-Type: text/html; charset=UTF-8';
         $headers[] = 'From: GPDEAL INFOS <infos@gpdeal.com>';
         $headers[] = 'Bcc:<erictonyelissouck@yahoo.fr>';
 
-        $subject = "Global Parcel Deal - " . __("Login credentials", "gpdealdomain");
-
-        $gp_username = $unique_user_email->first_name != "" ? $unique_user_email->first_name . " " . $unique_user_email->last_name : $unique_user_email->last_name;
-        $civility = get_user_meta($unique_user_email->ID, "gender", true);
+        $subject = "Global Parcel Deal - " . __("Resetting your password", "gpdealdomain");
         ob_start();
         ?>
+        <p style="font-size: 12.8px; margin-bottom: 1em;"><?php _e("Modify your password and you can continue", "gpdealdomain"); ?>.</p>
+        <p style="font-size: 12.8px; margin-bottom: 1em;"><?php _e("To change your GPDEAL password", "gpdealdomain"); ?>, <?php _e("cliquez ", "gpdealdomain"); ?> <a href="<?php echo esc_url(add_query_arg(array('id' => $user->user_login, 'key' => get_user_meta($user->ID, "hash-reset-password", true)), get_permalink(get_page_by_path(__('change-the-password', 'gpdealdomain'))))); ?>"><?php _e("here", "gpdealdomain"); ?></a>
+            <?php _e("or paste the following link into your browser", "gpdealdomain"); ?> :</p>
+        <p><?php echo esc_url(add_query_arg(array('id' => $user->user_login, 'key' => get_user_meta($user->ID, "hash-reset-password", true)), get_permalink(get_page_by_path(__('change-the-password', 'gpdealdomain'))))); ?></p>
+        <p style="font-size: 12.8px; margin-bottom: 1em;"><?php _e("This link will expire in 24 hours, be sure to use it soon", "gpdealdomain"); ?>.</p><br>
 
-        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Hello", "gpdealdomain"); ?><?php if ($civility != ""): ?> <?php echo __($civility, "gpdealdomain"); ?> <?php endif ?><?php echo $gp_username; ?>, </p>
-        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("You wish to receive your password, we remind you below your login credentials", "gpdealdomain"); ?> : </p>
-        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;">
-        <ul style="font-style: italic; font-size: 12.8px; list-style-type: none;">
-            <li>- <?php _e("Login", "gpdealdomain"); ?>  : <?php echo $unique_user_email->data->user_email; ?> ou <?php echo $unique_user_email->data->user_login; ?></li>
-            <li>- <?php _e("Password", "gpdealdomain"); ?> : <?php echo $plain_text_password; ?></li>
-        </ul>
-        </p>
-        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("For safety reasons, we advise you to change this regularly", "gpdealdomain"); ?>.</p>
-        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Thank you for your confidence, we remain at your disposal for any additional information", "gpdealdomain"); ?>.</p>
-        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("Cordially", "gpdealdomain"); ?>,</p>
-        <p style="font-style: italic; font-size: 12.8px; margin-bottom: 1em;"><?php _e("The team", "gpdealdomain"); ?> Global Parcel Deal</p>
+        <p style="font-size: 12.8px; margin-bottom: 1em;"><?php _e("Thank you for using GPDEAL", "gpdealdomain"); ?>,</p>
+        <p style="font-size: 12.8px; margin-bottom: 1em;"><?php _e("The team", "gpdealdomain"); ?> Global Parcel Deal</p>
         <p><a href="<?php echo home_url('/'); ?>"><img src="<?php echo get_template_directory_uri() ?>/assets/images/logo_gpdeal.png" style="width: 115px;"></a></p>
-        <p style="font-style: italic; color: rgb(0,153,51); font-size: 7pt;"><?php _e("Think about the environment before you print this message", "gpdealdomain"); ?>.</p>
-
         <?php
         $body = ob_get_contents();
         ob_end_clean();
@@ -1094,34 +977,38 @@ function get_password() {
         } else {
             $_SESSION['error_send_password'] = true;
         }
+    } else {
+        wp_safe_redirect(home_url('/'));
+        exit;
     }
 }
 
 //Function for getting forgot password of user
 function gp_reset_password() {
-    $current_user = wp_get_current_user();
-    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-        $old_password = esc_attr($_POST['old_password']);
-        if ($current_user && wp_check_password($old_password, $current_user->data->user_pass, $current_user->ID)) {
-            $json = array("message" => __("Correct informations", "gpdealdomain"));
-            return wp_send_json_success($json);
+    global $current_user;
+    if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'POST') {
+        $login = esc_attr($_POST['username']);
+        $user = get_user_by('login', $login);
+        $new_password = esc_attr($_POST['new_password']);
+        if ($user) {
+            update_user_meta($user->ID, 'plain-text-password', $new_password);
+            wp_set_password($new_password, $user->ID);
+            $hash_reset_password = sha1(uniqid(mt_rand(), true)) . '' . sha1(uniqid(mt_rand(), true)) . '' . sha1(uniqid(mt_rand(), true));
+            update_user_meta($user->ID, 'hash-reset-password', $hash_reset_password);
+
+//            $creds = array('user_login' => $user->data->user_login, 'user_password' => $new_password, 'remember' => false);
+//            $secure_cookie = is_ssl() ? true : false;
+//            $user = wp_signon($creds, $secure_cookie);
+            wp_safe_redirect(home_url('/'));
+            exit;
         } else {
-            $json = array("message" => __("Incorrect password", "gpdealdomain"));
-            return wp_send_json_error($json);
+            $_SESSION['reset_password_error'] = __("Unable to change password. Incorrect user", "gpdealdomain");
+            wp_safe_redirect(get_permalink(get_page_by_path(__('change-the-password', 'gpdealdomain'))));
+            exit;
         }
     } else {
-        $old_password = esc_attr($_POST['old_password']);
-        $new_password = esc_attr($_POST['new_password']);
-        if ($current_user && wp_check_password($old_password, $current_user->data->user_pass, $current_user->ID)) {
-            wp_set_password($new_password, $current_user->ID);
-            update_user_meta($current_user->ID, 'plain-text-password', $new_password);
-            wp_safe_redirect(get_permalink(get_page_by_path(__('my-account', 'gpdealdomain') . '/' . __('profile', 'gpdealdomain'))));
-            exit;
-        } else {
-            $_SESSION['reset_password_error'] = __("Unable to change password", "gpdealdomain");
-            wp_safe_redirect(get_permalink(get_page_by_path(__('my-account', 'gpdealdomain') . '/' . __('change-the-password', 'gpdealdomain'))));
-            exit;
-        }
+        wp_safe_redirect(home_url('/'));
+        exit;
     }
 }
 
@@ -2726,8 +2613,8 @@ function auto_version($file) {
 function expire_session() {
     if (is_user_logged_in()) {
         if (!$_SESSION['REMEMBER_ME']) {
+            // last request was more than 5 minutes ago
             if ((time() - $_SESSION['LAST_ACTIVITY'] > 5 * 60)) {
-                // last request was more than 30 minutes ago
                 unset($_SESSION['LAST_ACTIVITY']);     // unset $_SESSION variable for the run-time 
                 //session_destroy();   // destroy session data in storage
                 wp_logout();
