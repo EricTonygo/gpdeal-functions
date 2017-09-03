@@ -20,7 +20,7 @@ if (!defined("PP_CONFIG_PATH")) {
     define("PP_CONFIG_PATH", __DIR__);
 }
 
-function executePaypalPaymentWithCreditCard($card_type, $card_number, $card_cvc, $card_expire_month, $card_expire_year, $billing_country_code = null, $firstname = null, $lastname = null) {
+function executePaypalPaymentWithCreditCard($amount, $currency, $description, $card_type, $card_number, $card_cvc, $card_expire_month, $card_expire_year, $billing_country_code = null, $firstname = null, $lastname = null) {
 
     $card = new PaymentCard();
     $card->setType($card_type)
@@ -60,19 +60,19 @@ function executePaypalPaymentWithCreditCard($card_type, $card_number, $card_cvc,
     $details = new Details();
     $details->setShipping(0.0)
             ->setTax(0.0)
-            ->setSubtotal(2.00);
+            ->setSubtotal($amount);
 
     //Amount
     $amount = new Amount();
-    $amount->setCurrency("EUR")
-            ->setTotal(2.00)
+    $amount->setCurrency($currency)
+            ->setTotal($amount)
             ->setDetails($details);
 
     //Transaction
     $transaction = new Transaction();
     $transaction->setAmount($amount)
             //->setItemList($itemList)
-            ->setDescription("GPDEAL Amount transaction")
+            ->setDescription($description)
             ->setInvoiceNumber(uniqid());
 
     //Payment
@@ -91,7 +91,7 @@ function executePaypalPaymentWithCreditCard($card_type, $card_number, $card_cvc,
     return $payment;
 }
 
-function executePaypalPaymentUsingPaypalAccount() {
+function executePaypalPaymentUsingPaypalAccount($payment_amount, $currency, $description, $return_url, $cancel_url, $faillure_url) {
     //Payer
     $payer = new Payer();
     $payer->setPaymentMethod("paypal");
@@ -111,25 +111,25 @@ function executePaypalPaymentUsingPaypalAccount() {
     $details = new Details();
     $details->setShipping(0.0)
             ->setTax(0.0)
-            ->setSubtotal(2.00);
+            ->setSubtotal($payment_amount);
 
     //Amount
     $amount = new Amount();
-    $amount->setCurrency("EUR")
-            ->setTotal(2.00)
+    $amount->setCurrency($currency)
+            ->setTotal($payment_amount)
             ->setDetails($details);
 
     //Transaction
     $transaction = new Transaction();
     $transaction->setAmount($amount)
             //->setItemList($itemList)
-            ->setDescription("GPDEAL Amount transaction")
+            ->setDescription($description)
             ->setInvoiceNumber(uniqid());
 
     //Redirect Urls
     $redirectUrls = new RedirectUrls();
-    $redirectUrls->setReturnUrl(esc_url(add_query_arg(array('success' => 'true'), get_permalink(get_page_by_path(__('select-transport-offers', 'gpdealdomain') . '/' .__('payment', 'gpdealdomain'))))))
-            ->setCancelUrl(esc_url(get_permalink(get_page_by_path(__('select-transport-offers', 'gpdealdomain') . '/' .__('payment', 'gpdealdomain')))));
+    $redirectUrls->setReturnUrl($return_url)
+            ->setCancelUrl($cancel_url);
 
     //Payment
     $payment = new Payment();
@@ -143,9 +143,9 @@ function executePaypalPaymentUsingPaypalAccount() {
     try {
         $payment->create();
     } catch (Exception $ex) {
-        $error_cancel_redirect_url = $_SESSION['error_cancel_redirect_url'] != null ? $_SESSION['error_cancel_redirect_url'] : home_url('/');
+        //$error_cancel_redirect_url = $_SESSION['error_cancel_redirect_url'] != null ? $_SESSION['error_cancel_redirect_url'] : home_url('/');
         $_SESSION['faillure_process'] = __("An error occured during payment", "gpdealdomain");
-        wp_safe_redirect($error_cancel_redirect_url);
+        wp_safe_redirect($faillure_url);
         exit;
         
     }
@@ -174,10 +174,10 @@ function executePaypalPayment($paymentId, $payerId) {
         $result = $payment->execute($execution, $apiContext);
         return $result;
     } catch (Exception $ex) {
-        $error_cancel_redirect_url = $_SESSION['error_cancel_redirect_url'] != null ? $_SESSION['error_cancel_redirect_url']: home_url('/');
-        unset($_SESSION["error_cancel_redirect_url"]);
+//        $error_cancel_redirect_url = $_SESSION['error_cancel_redirect_url'] != null ? $_SESSION['error_cancel_redirect_url']: home_url('/');
+//        unset($_SESSION["error_cancel_redirect_url"]);
         $_SESSION['faillure_process'] = __("An error occured during payment", "gpdealdomain");
-        wp_safe_redirect($error_cancel_redirect_url);
+        wp_safe_redirect(get_permalink(get_page_by_path(__('select-transport-offers', 'gpdealdomain'). '/' . __('insure-shipment', 'gpdealdomain') . '/' .__('payment', 'gpdealdomain'))));
         exit;
     }
 }
