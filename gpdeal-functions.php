@@ -281,7 +281,7 @@ function filter_send_email_change_email($true, $user, $userdata) {
 
     <div style="font-size: 12.8px;"><?php _e("Hello", "gpdealdomain"); ?> <?php echo $user['user_login'] ?> !</div>
     <div><br></div>
-    <div style="font-size: 12.8px;"><?php _e("The modification of your e-mail address has been taken into account on our Global Parcel Deal website", "gpdealdomain"); ?>. </div>
+    <div style="font-size: 12.8px;"><?php _e("The modification of your e-mail address has been considered on our Global Parcel Deal website", "gpdealdomain"); ?>. </div>
     <div><br></div>
     <div style="font-size: 12.8px;"><?php _e("The e-mail registered for your transactions is now", "gpdealdomain"); ?> <a href="mailto:<?php echo $userdata['user_email']; ?>"><?php echo $userdata['user_email']; ?></a>.</div>
     <div><br></div>
@@ -303,7 +303,7 @@ function filter_send_email_change_email($true, $user, $userdata) {
 // add the filter 
 add_filter('send_email_change_email', 'filter_send_email_change_email', 10, 3);
 
-/* ************************************************************************************************************************** */
+/* * ************************************************************************************************************************* */
 
 //Check whether a user has a specifique role
 function get_user_roles_by_user_id($user_id) {
@@ -1889,6 +1889,7 @@ function getWPQueryArgsForCarrierSearch($search_data) {
     $today = date('Y-m-d H:i:s', strtotime('today'));
     $args = array(
         'post_type' => 'transport-offer',
+        'posts_per_page' => -1,
         "post_status" => 'publish',
         'orderby' => 'post_date',
         'order' => 'DESC',
@@ -1907,6 +1908,14 @@ function getWPQueryArgsForCarrierSearch($search_data) {
         $destination_country = $search_data['destination_country'];
         $destination_city = $search_data['destination_city'];
         $destination_date = $search_data['destination_date'];
+        $page = $search_data["page"];
+        $posts_per_page = $search_data["posts_per_page"];
+        if ($posts_per_page) {
+            $args["posts_per_page"] = $posts_per_page;
+        }
+        if ($page) {
+            $args["paged"] = $page;
+        }
 
         if (!empty($package_type)) {
             $tax_query[] = array(
@@ -1987,12 +1996,13 @@ function getWPQueryArgsForUnsatifiedSendPackages($search_data) {
     $args = array(
         'post_type' => 'package',
         "post_status" => 'publish',
+        'posts_per_page' => -1,
         'orderby' => 'post_date',
         'order' => 'DESC'
     );
-    if (is_user_logged_in()) {
-        $args["author__not_in"] = array(get_current_user_id());
-    }
+//    if (is_user_logged_in()) {
+//        $args["author__not_in"] = array(get_current_user_id());
+//    }
     if ($search_data) {
         $package_type = $search_data['package_type'];
         $start_country = $search_data['start_country'];
@@ -2001,6 +2011,14 @@ function getWPQueryArgsForUnsatifiedSendPackages($search_data) {
         $destination_country = $search_data['destination_country'];
         $destination_city = $search_data['destination_city'];
         $destination_date = $search_data['destination_date'];
+        $page = $search_data["page"];
+        $posts_per_page = $search_data["posts_per_page"];
+        if ($posts_per_page) {
+            $args["posts_per_page"] = $posts_per_page;
+        }
+        if ($page) {
+            $args["paged"] = $page;
+        }
 
         if (!empty($package_type)) {
             $tax_query[] = array(
@@ -2091,6 +2109,8 @@ function getWPQueryArgsCarrierSearchForWhichCanInterest($search_data, $exclude_i
         $destination_state = $search_data['destination_state'];
         $destination_city = $search_data['destination_city'];
         $destination_date = $search_data['destination_date'];
+        $page = $search_data["page"];
+        $posts_per_page = $search_data["posts_per_page"];
         if ($search_data["excluded_transport_offers"]) {
             $exclude_ids = array_merge($exclude_ids, $search_data["excluded_transport_offers"]);
         }
@@ -2098,13 +2118,21 @@ function getWPQueryArgsCarrierSearchForWhichCanInterest($search_data, $exclude_i
             $args = array(
                 "post_type" => "transport-offer",
                 "post_status" => 'publish',
+                'posts_per_page' => -1,
                 'orderby' => 'post_date',
                 'order' => 'DESC',
                 "post__not_in" => $exclude_ids
             );
-            if (is_user_logged_in()) {
-                $args["author__not_in"] = array(get_current_user_id());
+
+            if ($posts_per_page) {
+                $args["posts_per_page"] = $posts_per_page;
             }
+            if ($page) {
+                $args["paged"] = $page;
+            }
+//            if (is_user_logged_in()) {
+//                $args["author__not_in"] = array(get_current_user_id());
+//            }
             if (!empty($package_type)) {
                 $tax_query[] = array(
                     'taxonomy' => 'type_package',
@@ -2204,6 +2232,7 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($search_data, $e
     $args = array(
         'post_type' => 'package',
         "post_status" => 'publish',
+        'posts_per_page' => -1,
         'orderby' => 'post_date',
         'order' => 'DESC',
         "post__not_in" => $exclude_ids
@@ -2221,6 +2250,14 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($search_data, $e
         $destination_state = $search_data['destination_state'];
         $destination_city = $search_data['destination_city'];
         $destination_date = $search_data['destination_date'];
+        $page = $search_data["page"];
+        $posts_per_page = $search_data["posts_per_page"];
+        if ($posts_per_page) {
+            $args["posts_per_page"] = $posts_per_page;
+        }
+        if ($page) {
+            $args["paged"] = $page;
+        }
 
         if ($start_city || $destination_city) {
             if (!empty($package_type)) {
@@ -2228,7 +2265,7 @@ function getWPQueryArgsForUnsatifiedSendPackagesWithCanInterest($search_data, $e
                     'taxonomy' => 'type_package',
                     'field' => 'term_id',
                     'terms' => $package_type,
-                    'operator' => 'IN',
+                    'operator' => 'IN'
                 );
                 $args['tax_query'] = $tax_query;
             }
@@ -2317,9 +2354,10 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters($search_query_dat
     $today = date('Y-m-d H:i:s', strtotime('today'));
     $args = array(
         'post_type' => 'transport-offer',
-        "post_status" => 'publish',
+        'post_status' => 'publish',
+        'posts_per_page' => -1,
         'orderby' => 'post_date',
-        'order' => 'DESC'
+        'order' => 'DESC',
     );
 //    if (is_user_logged_in()) {
 //        $args["author__not_in"] = array(get_current_user_id());
@@ -2330,6 +2368,14 @@ function getWPQueryArgsForMainCarrierSearchWithStartParameters($search_query_dat
         $start_country = $search_query_data['start_country'];
         $start_state = $search_query_data["start_state"];
         $start_city = $search_query_data["start_city"];
+        $page = $search_query_data["page"];
+        $posts_per_page = $search_query_data["posts_per_page"];
+        if ($posts_per_page) {
+            $args["posts_per_page"] = $posts_per_page;
+        }
+        if ($page) {
+            $args["paged"] = $page;
+        }
         if ($start_state == "" && $start_country == "") {
             $meta_query = array(
                 'relation' => 'AND',
@@ -2457,7 +2503,8 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters($search_que
     $today = date('Y-m-d H:i:s', strtotime('today'));
     $args = array(
         'post_type' => 'transport-offer',
-        "post_status" => 'publish',
+        'post_status' => 'publish',
+        'posts_per_page' => -1,
         'orderby' => 'post_date',
         'order' => 'DESC'
     );
@@ -2466,10 +2513,17 @@ function getWPQueryArgsForMainCarrierSearchWithDestinationParameters($search_que
 //    }
     if ($search_query_data) {
 //array containing city name, region name, and country name of destination
-
         $destination_country = $search_query_data['destination_country'];
         $destination_state = $search_query_data['destination_state'];
         $destination_city = $search_query_data['destination_city'];
+        $page = $search_query_data["page"];
+        $posts_per_page = $search_query_data["posts_per_page"];
+        if ($posts_per_page) {
+            $args["posts_per_page"] = $posts_per_page;
+        }
+        if ($page) {
+            $args["paged"] = $page;
+        }
         if ($destination_state == "" && $destination_country == "") {
             $meta_query = array(
                 'relation' => 'AND',
@@ -2728,6 +2782,7 @@ function getRegionByCityAndCountry_tmp($city, $country) {
     return $region;
 }
 
+//Generate a array containing city, region, country from google places api city
 function getCountryRegionCityInformations($locality) {
     $country_region_city = array();
     if ($locality && $locality != "") {
