@@ -18,6 +18,7 @@ use src\Gpdeal\TransportOffer;
 require_once 'src/Gpdeal/POI.php';
 require_once 'src/Gpdeal/TransportOffer.php';
 require 'paypal/gpdeal-paypal-functions.php';
+//require 'wp_rewrite_rules/posts_rewrite_rule.php';
 
 $sitekey = '6LfoxhcUAAAAAL3L_vo5dnG1csXgdaYYf5APUTqn'; // votre clé publique
 
@@ -43,6 +44,7 @@ add_action('init', 'my_custom_init');
 
 function wpse66093_no_admin_access() {
     $redirect = home_url('/');
+    //exit(wp_redirect($redirect));
     if (is_admin() && !current_user_can('manage_options') && !wp_doing_ajax()) {
         exit(wp_redirect($redirect));
     }
@@ -673,6 +675,15 @@ function remove_lostpassword_text($text) {
     return $text;
 }
 
+//Prevent access to wp-login 
+function custom_login_page() {
+ global $pagenow;
+ if( $pagenow == "wp-login.php" && $_SERVER['REQUEST_METHOD'] == 'GET') {
+    wp_redirect(home_url( '/' ));
+    exit;
+ }
+}
+
 //Disable password reset from wp-login.php page
 add_filter('allow_password_reset', 'disable_password_reset');
 //Remove Reset lost password link form wp-login page
@@ -691,7 +702,14 @@ function my_custom_init() {
     create_transport_offer_taxonomies();
     //addUserCustomsField();
     add_my_featured_image_to_home();
+    custom_login_page();
 }
+
+//The Custom Wordpress Rewrite Rule
+//add_filter('generate_rewrite_rules', 'posts_cpt_generating_rule');
+
+//The Posts Link
+//add_filter('post_type_link',"change_link",10,2);
 
 function get_published_questions() {
     $posts = query_posts(array(
@@ -1132,7 +1150,7 @@ function gp_reset_password($login, $new_password) {
             exit;
         } else {
             $_SESSION['faillure_process'] = __("Unable to change password. Incorrect user", "gpdealdomain");
-            wp_safe_redirect(get_permalink(get_page_by_path(__('change-the-password', 'gpdealdomain'))));
+            wp_safe_redirect(get_permalink(get_page_by_path(__('change-the-password', 'gpdealdomain'))->ID));
             exit;
         }
     } else {
@@ -1628,6 +1646,7 @@ function evaluateTransportOffer($evaluation_data) {
 function saveTransportOffer($transport_offer_data) {
     if ($transport_offer_data) {
         $package_type = $transport_offer_data['transport_offer_package_type'];
+        $contact_voices = $transport_offer_data['contact_voices'];
         $transport_method = $transport_offer_data['transport_offer_transport_method'];
         $transport_offer_price = $transport_offer_data['transport_offer_price'];
         $transport_offer_currency = $transport_offer_data['transport_offer_currency'];
@@ -1682,7 +1701,8 @@ function saveTransportOffer($transport_offer_data) {
                 'arrival-date-transport-offer' => $destination_date,
                 'distance-between-departure-arrival' => $distance_between_departure_arrival,
                 'transport-status' => 1,
-                'packages-IDs' => -1
+                'packages-IDs' => -1,
+                'contact-voices' => $contact_voices
             )
         );
         $transport_offer_id = wp_insert_post($post_args, true);
@@ -1695,6 +1715,7 @@ function updateTransportOffer($post_ID, $transport_offer_data) {
     $transport_offer_id = null;
     if ($transport_offer_data) {
         $package_type = $transport_offer_data['transport_offer_package_type'];
+        $contact_voices = $transport_offer_data['contact_voices'];
         $transport_method = $transport_offer_data['transport_offer_transport_method'];
         $transport_offer_price = $transport_offer_data['transport_offer_price'];
         $transport_offer_currency = $transport_offer_data['transport_offer_currency'];
@@ -1740,7 +1761,8 @@ function updateTransportOffer($post_ID, $transport_offer_data) {
                 'destination-city-transport-offer' => $destination_city,
                 'destination-city-as-gmap' => $destination_city_as_gmap,
                 'arrival-date-transport-offer' => $destination_date,
-                'distance-between-departure-arrival' => $distance_between_departure_arrival
+                'distance-between-departure-arrival' => $distance_between_departure_arrival,
+                'contact-voices' => $contact_voices
             )
         );
         $transport_offer_id = wp_update_post($post_args, true);
